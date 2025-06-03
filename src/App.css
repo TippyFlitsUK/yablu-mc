@@ -1,0 +1,241 @@
+/* CSS Variables for repeated values */
+:root {
+  --project-red: #ef4444;
+  --project-green: #22c55e;
+  --project-blue: #3b82f6;
+  --bg-main: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+  --bg-card: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  --bg-header: linear-gradient(135deg, #000000 0%, #374151 100%);
+  --border-main: #4b5563;
+  --border-light: #6b7280;
+  --text-main: #f3f4f6;
+  --radius-main: 8px;
+}
+
+/* App Layout */
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  background: var(--bg-main);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  overflow: hidden;
+  min-height: 100vh;
+}
+
+.header {
+  background: var(--bg-header);
+  color: white;
+  padding: 24px;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: -0.025em;
+}
+
+.header p {
+  opacity: 0.9;
+  font-size: 1.1rem;
+}
+
+.planner-container {
+  display: flex;
+  height: calc(100vh - 140px);
+  min-height: 600px;
+}
+
+/* Master List Column */
+.planner-container > .day-column:first-child {
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  background: linear-gradient(180deg, #000000 0%, #1f2937 100%);
+  border-right: 2px solid var(--border-main);
+  padding: 20px;
+  overflow-y: scroll;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.planner-container > .day-column:first-child::-webkit-scrollbar {
+  display: none;
+}
+
+.planner-container > .day-column:first-child .day-header {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Week Columns */
+.week-columns {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--bg-main);
+  gap: 0;
+}
+
+.week-columns .day-column {
+  border-right: 1px solid var(--border-main);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.week-columns .day-column:last-child {
+  border-right: none;
+}
+
+.day-header {
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border-main);
+  text-align: center;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.task-list {
+  flex: 1;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Base Task Card */
+.task-card {
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  border: 1px solid #6b7280;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  user-select: none;
+  color: #f3f4f6;
+}
+
+.task-card:hover {
+  border-color: #9ca3af;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transform: translateY(-1px);
+}
+
+.task-card:active {
+  cursor: grabbing;
+}
+
+.task-card.dragging {
+  opacity: 0.8;
+  transform: rotate(5deg);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+}
+
+.task-title {
+  font-weight: 500;
+  color: #f3f4f6;
+  line-height: 1.4;
+}
+
+/* Project Headers */
+.project-header {
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: default;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  border-left: 5px solid;
+  color: #f3f4f6;
+}
+
+.project-header.project-red {
+  border-left-color: #ef4444;
+}
+
+.project-header.project-green {
+  border-left-color: #22c55e;
+}
+
+.project-header.project-blue {
+  border-left-color: #3b82f6;
+}
+
+.project-title {
+  font-weight: 700;
+  color: inherit;
+}
+
+/* Sub-tasks */
+.task-card.sub-task {
+  margin-left: 24px;
+  font-size: 0.95rem;
+  border-left: 3px solid;
+}
+
+.task-card.sub-task.project-red {
+  border-left-color: #ef4444;
+}
+
+.task-card.sub-task.project-green {
+  border-left-color: #22c55e;
+}
+
+.task-card.sub-task.project-blue {
+  border-left-color: #3b82f6;
+}
+
+/* Sub-tasks in day columns */
+.week-columns .task-card.sub-task {
+  margin-left: 0;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .week-columns {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .week-columns .day-column:nth-child(n+5) {
+    border-top: 1px solid var(--border-main);
+  }
+}
+
+@media (max-width: 800px) {
+  .planner-container {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .planner-container > .day-column:first-child {
+    width: 100%;
+    max-height: 200px;
+  }
+  
+  .week-columns {
+    grid-template-columns: repeat(2, 1fr);
+    height: auto;
+  }
+  
+  .week-columns .day-column {
+    min-height: 200px;
+  }
+}
