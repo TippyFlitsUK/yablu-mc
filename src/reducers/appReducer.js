@@ -1,11 +1,10 @@
 import { INITIAL_PROJECT_DATA, DAYS, PROJECT_COLORS } from '../utils/constants';
-import { findTaskLocationInTasks } from '../utils/helpers';
-import { arrayMove } from '@dnd-kit/sortable'; 
+import { arrayMove } from '@dnd-kit/sortable';
 
 export const initialAppState = {
-  projectDefinitions: [],
-  tasks: {
-    master: [],
+  projectDefinitions: [], 
+  tasks: { 
+    master: [], 
     ...DAYS.reduce((acc, day) => {
       acc[day.toLowerCase()] = [];
       return acc;
@@ -16,7 +15,6 @@ export const initialAppState = {
 };
 
 function getDefaultProjectDefinitions() {
-  console.log("getDefaultProjectDefinitions: Generating default project definitions from INITIAL_PROJECT_DATA.");
   return INITIAL_PROJECT_DATA.map(p => ({
     id: p.id,
     title: p.title,
@@ -26,286 +24,281 @@ function getDefaultProjectDefinitions() {
 }
 
 function getDefaultTasks(projectDefs) {
-  console.log("getDefaultTasks: Generating default tasks based on provided project definitions.");
-  const tasks = {
-    master: [],
-    ...DAYS.reduce((acc, day) => {
-      acc[day.toLowerCase()] = [];
-      return acc;
-    }, {})
+  const masterTasks = [];
+  INITIAL_PROJECT_DATA.forEach(projData => {
+    const projectDefinition = projectDefs.find(pd => pd.id === projData.id);
+    if (projData.children) {
+      masterTasks.push(...projData.children.map(task => ({
+        ...task,
+        projectId: projData.id,
+        projectColor: projectDefinition ? projectDefinition.color : PROJECT_COLORS[0].value,
+        type: 'task',
+        notes: task.notes || '', // Initialize notes for default tasks
+      })));
+    }
+  });
+  return {
+    master: masterTasks,
+    ...DAYS.reduce((acc, day) => { acc[day.toLowerCase()] = []; return acc; }, {})
   };
-  
-  if (projectDefs && projectDefs.length > 0) {
-    projectDefs.forEach(projectDef => {
-      tasks.master.push({ ...projectDef }); 
-      const originalProject = INITIAL_PROJECT_DATA.find(p => p.id === projectDef.id);
-      if (originalProject && originalProject.children) { 
-        tasks.master.push(...originalProject.children.map(task => ({
-          ...task,
-          projectColor: projectDef.color 
-        })));
-      }
-    });
-  }
-  console.log("getDefaultTasks: Resulting tasks structure:", JSON.parse(JSON.stringify(tasks.master.slice(0, 5)))); // Log a sample
-  return tasks;
 }
-
 
 export function appReducer(state, action) {
   switch (action.type) {
     case 'INITIALIZE_STATE': {
-      const loadedProjectDefs = action.payload.projectDefinitions; 
-      const loadedTasks = action.payload.tasks;                   
-
-      let finalProjectDefinitions;
-      let finalTasks;
-
-      // Simplified condition: If EITHER projects OR tasks are null (i.e., not found in localStorage),
-      // then it's considered a fresh start, and we load all default sample data.
-      if (loadedProjectDefs === null || loadedTasks === null) {
-        console.log("INITIALIZE_STATE: Projects or Tasks (or both) are null from storage. Initializing with default sample data.");
-        finalProjectDefinitions = getDefaultProjectDefinitions(); 
-        finalTasks = getDefaultTasks(finalProjectDefinitions); 
+      let { projectDefinitions, tasks, deletedTasks, completedTasks } = action.payload;
+      if (!projectDefinitions || projectDefinitions.length === 0 || !tasks ) {
+        projectDefinitions = getDefaultProjectDefinitions();
+        tasks = getDefaultTasks(projectDefinitions);
       } else {
-        // Both projects AND tasks were found in storage (even if they are empty arrays/objects representing a user's cleared state).
-        // Use the loaded data.
-        console.log("INITIALIZE_STATE: Both Projects and Tasks found in storage. Using loaded data.");
-        finalProjectDefinitions = loadedProjectDefs;
-        finalTasks = { ...loadedTasks }; // Clone
-
-        // Integrity check for loaded tasks: ensure all day columns and master list exist
         DAYS.forEach(day => {
           const dayKey = day.toLowerCase();
-          if (finalTasks[dayKey] === undefined) { // Check for undefined, as [] is a valid empty list
-            console.warn(`INITIALIZE_STATE: Loaded tasks missing column for ${dayKey}. Initializing as empty array.`);
-            finalTasks[dayKey] = [];
-          }
+          if (!tasks[dayKey]) tasks[dayKey] = [];
         });
-        if (finalTasks.master === undefined) { // Check for undefined
-          console.warn("INITIALIZE_STATE: Loaded tasks missing 'master' list. Initializing as empty array.");
-          finalTasks.master = []; 
-        }
+        if (!tasks.master) tasks.master = [];
+        projectDefinitions = (projectDefinitions || []).map(p => ({...p, type: p.type || 'project'}));
+        // Ensure all loaded tasks have a notes field
+        tasks.master = (tasks.master || []).map(t => ({...t, type: t.type || 'task', notes: t.notes || ''}));
+        DAYS.forEach(dayKey => {
+            tasks[dayKey.toLowerCase()] = (tasks[dayKey.toLowerCase()] || []).map(t => ({...t, type: t.type || 'task', notes: t.notes || ''}));
+        });
       }
-      
-      console.log("INITIALIZE_STATE: Final projectDefinitions count:", finalProjectDefinitions.length);
-      console.log("INITIALIZE_STATE: Final master tasks count:", finalTasks.master ? finalTasks.master.length : 'undefined');
-
-
-      return {
-        ...state,
-        projectDefinitions: finalProjectDefinitions,
-        tasks: finalTasks,
-        deletedTasks: action.payload.deletedTasks || [],
-        completedTasks: action.payload.completedTasks || [],
-      };
+      return { ...state, projectDefinitions, tasks, deletedTasks: deletedTasks || [], completedTasks: completedTasks || [] };
     }
 
     case 'ADD_PROJECT': {
       const { title, color } = action.payload;
-      const newProjectId = `project-${Date.now()}`;
-      const newProjectDefinition = { id: newProjectId, title, color, type: 'project' };
-      const newMasterTasks = state.tasks.master ? [...state.tasks.master, newProjectDefinition] : [newProjectDefinition];
-      return {
-        ...state,
-        projectDefinitions: [...state.projectDefinitions, newProjectDefinition],
-        tasks: {
-          ...state.tasks,
-          master: newMasterTasks
-        }
+      const newProject = { id: `project-${Date.now()}`, title, color, type: 'project' };
+      return { ...state, projectDefinitions: [...state.projectDefinitions, newProject] };
+    }
+
+    case 'ADD_TASK': {
+      const { title, projectId, projectColor, notes } = action.payload; // Added notes
+      const newTask = { 
+        id: `task-${Date.now()}`, 
+        title, 
+        projectId, 
+        projectColor, 
+        type: 'task',
+        notes: notes || '' // Ensure notes is initialized
       };
+      let updatedMasterTasks = [...(state.tasks.master || []), newTask];
+      
+      const tempSortedMasterTasks = [];
+      (state.projectDefinitions || []).forEach(pDef => {
+          updatedMasterTasks.filter(t => t.projectId === pDef.id).forEach(t => tempSortedMasterTasks.push(t));
+      });
+      updatedMasterTasks = tempSortedMasterTasks;
+
+      return { ...state, tasks: { ...state.tasks, master: updatedMasterTasks } };
     }
 
     case 'EDIT_PROJECT': {
-      const { projectId, newTitle, newColor } = action.payload;
-      const updatedProjectDefinitions = state.projectDefinitions.map(p =>
-        p.id === projectId ? { ...p, title: newTitle, color: newColor } : p
-      );
-      const updatedTasksState = JSON.parse(JSON.stringify(state.tasks)); 
-      Object.keys(updatedTasksState).forEach(columnKey => {
-        if(updatedTasksState[columnKey]){ 
-            updatedTasksState[columnKey] = updatedTasksState[columnKey].map(item => {
-            if (item.type === 'project' && item.id === projectId) {
-                return { ...item, title: newTitle, color: newColor };
-            }
-            if (item.type === 'task' && item.projectId === projectId) {
-                return { ...item, projectColor: newColor };
-            }
-            return item;
-            });
-        }
-      });
-      return { ...state, projectDefinitions: updatedProjectDefinitions, tasks: updatedTasksState };
+        const { projectId, newTitle, newColor } = action.payload;
+        const updatedProjectDefinitions = state.projectDefinitions.map(p =>
+            p.id === projectId ? { ...p, title: newTitle, color: newColor } : p
+        );
+        const updatedTasks = JSON.parse(JSON.stringify(state.tasks));
+        Object.keys(updatedTasks).forEach(listKey => {
+            updatedTasks[listKey] = updatedTasks[listKey].map(item => 
+                (item.type === 'task' && item.projectId === projectId) ? { ...item, projectColor: newColor } : item
+            );
+        });
+        return { ...state, projectDefinitions: updatedProjectDefinitions, tasks: updatedTasks };
     }
 
-    case 'DELETE_PROJECT': { 
-      const project = action.payload;
-      const updatedProjectDefinitions = state.projectDefinitions.filter(p => p.id !== project.id);
-      const updatedMasterTasks = state.tasks.master ? state.tasks.master.filter(item => item.id !== project.id || item.type !== 'project') : [];
-      
-      return {
-        ...state,
-        projectDefinitions: updatedProjectDefinitions,
-        tasks: {
-          ...state.tasks,
-          master: updatedMasterTasks
-        }
-      };
+    case 'DELETE_PROJECT': {
+        const projectToDelete = action.payload;
+        const updatedProjectDefinitions = state.projectDefinitions.filter(p => p.id !== projectToDelete.id);
+        const updatedTasks = JSON.parse(JSON.stringify(state.tasks));
+        Object.keys(updatedTasks).forEach(listKey => {
+            updatedTasks[listKey] = updatedTasks[listKey].filter(task => task.projectId !== projectToDelete.id);
+        });
+        return { ...state, projectDefinitions: updatedProjectDefinitions, tasks: updatedTasks };
     }
     
-    case 'EDIT_TASK': {
-      const { taskId, taskData } = action.payload;
-      const updatedTasks = JSON.parse(JSON.stringify(state.tasks)); 
-      for (const columnKey of Object.keys(updatedTasks)) {
-        if(updatedTasks[columnKey]){
-            updatedTasks[columnKey] = updatedTasks[columnKey].map(item =>
-            item.id === taskId ? { ...item, ...taskData } : item
-            );
-        }
-      }
+    case 'EDIT_TASK': { // This action will now handle notes as well
+      const { taskId, taskData } = action.payload; // taskData can include { title, projectId, projectColor, notes }
+      const updatedTasks = JSON.parse(JSON.stringify(state.tasks));
+      let taskFoundAndUpdated = false;
+      Object.keys(updatedTasks).forEach(listKey => {
+        updatedTasks[listKey] = updatedTasks[listKey].map(item => {
+          if (item.id === taskId && item.type === 'task') {
+            taskFoundAndUpdated = true;
+            return { ...item, ...taskData, notes: taskData.notes !== undefined ? taskData.notes : item.notes || '' }; // Ensure notes is preserved or updated
+          }
+          return item;
+        });
+      });
+       if (!taskFoundAndUpdated) console.warn(`EDIT_TASK: Task with ID ${taskId} not found.`);
       return { ...state, tasks: updatedTasks };
     }
 
     case 'DELETE_TASK': {
-      const task = action.payload;
-      const location = findTaskLocationInTasks(task.id, state.tasks);
-      if (!location) return state;
-
-      const deletedTaskRecord = { task, deletedAt: Date.now(), originalContainer: location.container, originalIndex: location.index };
-      const newTasksState = JSON.parse(JSON.stringify(state.tasks)); 
-      for (const [containerName, containerItems] of Object.entries(newTasksState)) {
-        if(newTasksState[containerName]){
-            newTasksState[containerName] = containerItems.filter(t => t.id !== task.id);
-        }
+      const taskToDelete = action.payload;
+      let originalContainer = null, originalIndex = -1;
+      for (const listKey of Object.keys(state.tasks)) {
+          const index = (state.tasks[listKey] || []).findIndex(t => t.id === taskToDelete.id);
+          if (index !== -1) { originalContainer = listKey; originalIndex = index; break; }
       }
-      return {
-        ...state,
-        tasks: newTasksState,
-        deletedTasks: [...state.deletedTasks, deletedTaskRecord]
-      };
+      if (!originalContainer) return state;
+      const deletedTaskRecord = { task: taskToDelete, deletedAt: Date.now(), originalContainer, originalIndex };
+      const newTasksState = JSON.parse(JSON.stringify(state.tasks));
+      Object.keys(newTasksState).forEach(listKey => {
+          newTasksState[listKey] = (newTasksState[listKey] || []).filter(item => item.id !== taskToDelete.id);
+      });
+      return { ...state, tasks: newTasksState, deletedTasks: [...state.deletedTasks, deletedTaskRecord] };
     }
 
     case 'COMPLETE_TASK': {
-      const task = action.payload;
-      const location = findTaskLocationInTasks(task.id, state.tasks);
-      if (!location) return state;
-
-      const projectDef = state.projectDefinitions.find(p => p.id === task.projectId);
-      const currentProjectColor = projectDef ? projectDef.color : task.projectColor;
-      const completedTaskRecord = {
-        task: { ...task, projectColor: currentProjectColor },
-        completedAt: Date.now(),
-        originalContainer: location.container,
-        originalIndex: location.index
-      };
-      const newTasksState = JSON.parse(JSON.stringify(state.tasks)); 
-      for (const [containerName, containerItems] of Object.entries(newTasksState)) {
-        if(newTasksState[containerName]){
-            newTasksState[containerName] = containerItems.filter(t => t.id !== task.id);
-        }
+      const taskToComplete = action.payload;
+      let originalContainer = null, originalIndex = -1;
+      for (const listKey of Object.keys(state.tasks)) {
+          const index = (state.tasks[listKey] || []).findIndex(t => t.id === taskToComplete.id);
+          if (index !== -1) { originalContainer = listKey; originalIndex = index; break; }
       }
-      return {
-        ...state,
-        tasks: newTasksState,
-        completedTasks: [...state.completedTasks, completedTaskRecord]
-      };
-    }
-
-    case 'RESTORE_TASK': {
-      const { task, originalContainer, originalIndex } = action.payload; 
-      const newTasks = JSON.parse(JSON.stringify(state.tasks)); 
-
-      if (newTasks[originalContainer]) {
-        const targetIndex = Math.min(originalIndex, newTasks[originalContainer].length);
-        newTasks[originalContainer].splice(targetIndex, 0, task);
-      } else {
-        newTasks.master = newTasks.master || []; 
-        newTasks.master.push(task); 
-      }
-      return {
-        ...state,
-        tasks: newTasks,
-        deletedTasks: state.deletedTasks.filter(dt => dt.task.id !== task.id)
-      };
-    }
-    
-    case 'MARK_INCOMPLETE': {
-        const { task, originalContainer, originalIndex } = action.payload; 
-        const newTasks = JSON.parse(JSON.stringify(state.tasks)); 
-
-        if (newTasks[originalContainer]) {
-            const targetIndex = Math.min(originalIndex, newTasks[originalContainer].length);
-            newTasks[originalContainer].splice(targetIndex, 0, task);
-        } else {
-            newTasks.master = newTasks.master || []; 
-            newTasks.master.push(task);
-        }
-        return {
-            ...state,
-            tasks: newTasks,
-            completedTasks: state.completedTasks.filter(ct => ct.task.id !== task.id)
-        };
-    }
-
-    case 'PERMANENT_DELETE_TASK': { 
-      const taskId = action.payload;
-      return {
-        ...state,
-        deletedTasks: state.deletedTasks.filter(dt => dt.task.id !== taskId)
-      };
-    }
-    
-    case 'CLEANUP_OLD_DELETED_TASKS': {
-        const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-        return {
-            ...state,
-            deletedTasks: state.deletedTasks.filter(deletedTask => deletedTask.deletedAt > thirtyDaysAgo)
-        };
-    }
-
-    case 'MOVE_TASK': {
-      const { activeId, overId, activeContainer, overContainer } = action.payload;
+      if (!originalContainer) return state;
+      const projectDef = state.projectDefinitions.find(p => p.id === taskToComplete.projectId);
+      const completedTaskRecord = { task: { ...taskToComplete, projectColor: projectDef?.color || taskToComplete.projectColor }, completedAt: Date.now(), originalContainer, originalIndex };
       const newTasksState = JSON.parse(JSON.stringify(state.tasks));
+      Object.keys(newTasksState).forEach(listKey => {
+          newTasksState[listKey] = (newTasksState[listKey] || []).filter(item => item.id !== taskToComplete.id);
+      });
+      return { ...state, tasks: newTasksState, completedTasks: [...state.completedTasks, completedTaskRecord] };
+    }
+    
+    case 'RESTORE_TASK':
+    case 'MARK_INCOMPLETE': {
+        const { task, originalContainer, originalIndex } = action.payload;
+        const newTasksState = JSON.parse(JSON.stringify(state.tasks));
+        
+        if (originalContainer === 'master') {
+            let masterTasks = [...(newTasksState.master || []), task];
+            const tempSortedMasterTasks = [];
+            (state.projectDefinitions || []).forEach(pDef => {
+                masterTasks.filter(t => t.projectId === pDef.id).forEach(t => tempSortedMasterTasks.push(t));
+            });
+            newTasksState.master = tempSortedMasterTasks;
+        } else if (newTasksState[originalContainer]) {
+            const targetList = newTasksState[originalContainer];
+            const insertAtIndex = Math.min(originalIndex, targetList.length);
+            targetList.splice(insertAtIndex, 0, task);
+        } else { 
+            let masterTasks = [...(newTasksState.master || []), task];
+            const tempSortedMasterTasks = [];
+            (state.projectDefinitions || []).forEach(pDef => {
+                masterTasks.filter(t => t.projectId === pDef.id).forEach(t => tempSortedMasterTasks.push(t));
+            });
+            newTasksState.master = tempSortedMasterTasks;
+        }
 
-      if (!newTasksState[activeContainer] || !newTasksState[overContainer]) {
-        return state;
+        if (action.type === 'RESTORE_TASK') {
+            return { ...state, tasks: newTasksState, deletedTasks: state.deletedTasks.filter(dt => dt.task.id !== task.id) };
+        }
+        return { ...state, tasks: newTasksState, completedTasks: state.completedTasks.filter(ct => ct.task.id !== task.id) };
+    }
+
+    case 'PERMANENT_DELETE_TASK': {
+      return { ...state, deletedTasks: state.deletedTasks.filter(dt => dt.task.id !== action.payload) };
+    }
+    case 'CLEANUP_OLD_DELETED_TASKS': {
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      return { ...state, deletedTasks: state.deletedTasks.filter(dt => dt.deletedAt > thirtyDaysAgo) };
+    }
+
+    case 'MOVE_PROJECT': {
+        const { activeId, overId } = action.payload;
+        const projectDefinitions = [...state.projectDefinitions];
+        const oldIndex = projectDefinitions.findIndex(p => p.id === activeId);
+        let newIndex = projectDefinitions.findIndex(p => p.id === overId);
+
+        if (oldIndex === -1) return state;
+        if (activeId === overId) newIndex = oldIndex; 
+        else if (overId === 'master' || newIndex === -1) { 
+            newIndex = projectDefinitions.length; 
+        }
+        const updatedProjectDefinitions = arrayMove(projectDefinitions, oldIndex, newIndex);
+        return { ...state, projectDefinitions: updatedProjectDefinitions };
+    }
+
+    case 'MOVE_TASK': { // Logic from "Targeted Fixes for Regressions v4"
+      const { activeId, overId, activeContainer, overContainer, taskProjectId } = action.payload;
+      let newTasksState = JSON.parse(JSON.stringify(state.tasks));
+      let movedItem;
+
+      if (newTasksState[activeContainer]) {
+        const sourceItems = newTasksState[activeContainer];
+        const activeIdx = sourceItems.findIndex(item => item.id === activeId);
+        if (activeIdx === -1) return state;
+        [movedItem] = sourceItems.splice(activeIdx, 1);
+      } else { return state; } 
+      if (!movedItem) return state; 
+
+      movedItem.projectId = taskProjectId; 
+
+      if (overContainer !== 'master') {
+        const targetDayKey = overContainer;
+        const originalItemsOfTargetDay = [...(state.tasks[targetDayKey] || [])]; 
+        let oldIndexInDayColumn = (activeContainer === targetDayKey) ? originalItemsOfTargetDay.findIndex(item => item.id === activeId) : -1;
+        let newIndexInDayColumn;
+        if (overId === targetDayKey) { newIndexInDayColumn = originalItemsOfTargetDay.length; } 
+        else {
+            newIndexInDayColumn = originalItemsOfTargetDay.findIndex(item => item.id === overId);
+            if (newIndexInDayColumn === -1) newIndexInDayColumn = originalItemsOfTargetDay.length;
+        }
+        if (activeContainer === targetDayKey) { 
+            if (oldIndexInDayColumn === -1) return state; 
+            newTasksState[targetDayKey] = arrayMove(originalItemsOfTargetDay, oldIndexInDayColumn, newIndexInDayColumn);
+        } else { 
+            const targetListInNewState = newTasksState[targetDayKey] = (newTasksState[targetDayKey] || []);
+            if (newIndexInDayColumn >= targetListInNewState.length && overId !== targetDayKey && originalItemsOfTargetDay.findIndex(item => item.id === overId) === -1) {
+                 targetListInNewState.push(movedItem);
+            } else if (newIndexInDayColumn === originalItemsOfTargetDay.length && overId === targetDayKey) {
+                 targetListInNewState.push(movedItem);
+            } else {
+                 targetListInNewState.splice(Math.max(0, newIndexInDayColumn), 0, movedItem);
+            }
+        }
+      } 
+      else if (overContainer === 'master' && activeContainer !== 'master') { 
+        let masterTasksPool = newTasksState.master ? [...newTasksState.master] : [];
+        movedItem.projectId = taskProjectId; 
+        masterTasksPool.push(movedItem); 
+        const finalSortedMasterTasks = [];
+        (state.projectDefinitions || []).forEach(pDef => {
+            masterTasksPool.filter(t => t.projectId === pDef.id).forEach(t => finalSortedMasterTasks.push(t));
+        });
+        newTasksState.master = finalSortedMasterTasks;
       }
-      
-      const activeItems = newTasksState[activeContainer];
-      const overItems = newTasksState[overContainer];
-      const activeIndex = activeItems.findIndex(item => item.id === activeId);
-
-      if (activeIndex === -1) {
-        return state; 
-      }
-
-      if (activeContainer === overContainer) {
-        let overIndex = overItems.findIndex(item => item.id === overId);
-        
-        if (overId === overContainer || (overIndex === -1 && overId !== overContainer && !overItems.find(item => item.id === overId))) {
-          overIndex = overItems.length;
-        } else if (overIndex === -1 && overId === activeId) {
-           overIndex = activeIndex; 
+      else if (activeContainer === 'master' && overContainer === 'master') {
+        let masterTasksPool = newTasksState.master ? [...newTasksState.master] : [];
+        const originalMasterTasks = [...state.tasks.master]; 
+        const tasksOfSameProject = originalMasterTasks.filter(t => t.projectId === taskProjectId);
+        const oldIdxInProject = tasksOfSameProject.findIndex(t => t.id === activeId);
+        if (oldIdxInProject === -1) { masterTasksPool.push(movedItem); } 
+        else {
+            let newIdxInProject;
+            const overItemInOriginalMaster = originalMasterTasks.find(item => item.id === overId);
+            if (overId === 'master' || !overItemInOriginalMaster || (overItemInOriginalMaster.type === 'project' && overItemInOriginalMaster.id !== taskProjectId) || (overItemInOriginalMaster.type === 'task' && overItemInOriginalMaster.projectId !== taskProjectId) ) {
+                newIdxInProject = tasksOfSameProject.length; 
+            } else if (overItemInOriginalMaster.type === 'project' && overItemInOriginalMaster.id === taskProjectId) {
+                newIdxInProject = 0; 
+            } else { 
+                newIdxInProject = tasksOfSameProject.findIndex(t => t.id === overId);
+                if (newIdxInProject === -1) newIdxInProject = tasksOfSameProject.length;
+            }
+            const reorderedProjectTasks = arrayMove(tasksOfSameProject, oldIdxInProject, newIdxInProject);
+            const otherProjectTasks = originalMasterTasks.filter(t => t.projectId !== taskProjectId);
+            masterTasksPool = [...otherProjectTasks, ...reorderedProjectTasks];
         }
-        
-        if (activeIndex !== overIndex) {
-            newTasksState[activeContainer] = arrayMove(activeItems, activeIndex, overIndex);
-        } else {
-            return state; 
-        }
-      } else {
-        const [movedItem] = activeItems.splice(activeIndex, 1); 
-        let overTaskIndex = overItems.findIndex(item => item.id === overId);
-        
-        if (overId === overContainer || overTaskIndex === -1) { 
-          overItems.push(movedItem); 
-        } else {
-          overItems.splice(overTaskIndex, 0, movedItem);
-        }
+        const finalSortedMasterTasks = [];
+        (state.projectDefinitions || []).forEach(pDef => {
+            masterTasksPool.filter(t => t.projectId === pDef.id).forEach(t => finalSortedMasterTasks.push(t));
+        });
+        newTasksState.master = finalSortedMasterTasks;
       }
       return { ...state, tasks: newTasksState };
     }
-
     default:
       return state;
   }

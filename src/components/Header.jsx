@@ -1,12 +1,25 @@
 import React from 'react';
-import { PlusCircle, CheckCircle, Trash } from 'lucide-react';
+import { PlusCircle, CheckCircle, Trash, ListPlus } from 'lucide-react'; // Added ListPlus
 
-function AppHeader({ onOpenAddProjectModal, onShowCompletedTasks, onShowRecycleBin, recycleBinCount }) {
+function AppHeader({
+  onOpenAddProjectModal,
+  onOpenAddTaskModal, // New prop
+  onShowCompletedTasks,
+  onShowRecycleBin,
+  recycleBinCount
+}) {
   return (
     <div className="app-header">
       <h1>YABLU-MC</h1>
       <p>Weekly Task Planner</p>
       <div className="header-buttons">
+        <button
+          className="add-new-task-btn header-action-btn" // New button
+          onClick={onOpenAddTaskModal}
+          title="Add New Task"
+        >
+          <ListPlus size={20} />
+        </button>
         <button
           className="add-new-project-btn header-action-btn"
           onClick={onOpenAddProjectModal}
@@ -20,7 +33,6 @@ function AppHeader({ onOpenAddProjectModal, onShowCompletedTasks, onShowRecycleB
           title="Completed Tasks"
         >
           <CheckCircle size={20} />
-          {/* You can add a count for completed tasks if needed */}
         </button>
         <button
           className="recycle-bin-btn header-action-btn"
@@ -36,3 +48,4 @@ function AppHeader({ onOpenAddProjectModal, onShowCompletedTasks, onShowRecycleB
 }
 
 export default AppHeader;
+

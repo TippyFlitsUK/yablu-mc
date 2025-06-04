@@ -3,9 +3,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import TaskCard from './TaskCard';
 
-// This component wraps TaskCard to make it sortable.
-// It receives the task, the onContextMenu handler, and the ID of its parent column.
-function SortableTaskCard({ task, onContextMenu, columnId }) { // Added columnId prop
+// onTaskClick prop is passed from Column.jsx
+function SortableTaskCard({ task, onContextMenu, columnId, onTaskClick }) { 
   const {
     attributes,      
     listeners,       
@@ -15,10 +14,10 @@ function SortableTaskCard({ task, onContextMenu, columnId }) { // Added columnId
     isDragging,      
   } = useSortable({ 
     id: task.id,     
-    data: { // Store extra data with the sortable item
+    data: { 
       type: 'task',  
       task: task,    
-      originalColumnId: columnId, // Explicitly store the column ID here
+      originalColumnId: columnId, 
     }
   });
 
@@ -26,14 +25,40 @@ function SortableTaskCard({ task, onContextMenu, columnId }) { // Added columnId
     transform: CSS.Transform.toString(transform), 
     transition,                                   
     opacity: isDragging ? 0.7 : 1,               
-    cursor: 'grab',                              
     boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.3)' : undefined, 
     zIndex: isDragging ? 100 : 'auto',           
   };
 
   if (!task) {
+    console.log("[SortableTaskCard] Task prop is null, rendering null.");
     return null;
   }
+
+  const handleClick = (e) => {
+    console.log(`[SortableTaskCard] handleClick triggered for task: ${task.id}, title: ${task.title}`);
+    console.log(`[SortableTaskCard] Event button: ${e.button}, isDragging: ${isDragging}, onTaskClick prop exists: ${!!onTaskClick}`);
+    
+    // Check if it's a left click (button 0) and not currently dragging
+    // Also, ensure onTaskClick is a function.
+    if (e.button === 0 && typeof onTaskClick === 'function' && !isDragging) { 
+      console.log(`[SortableTaskCard] Conditions met. Calling onTaskClick for task: ${task.id}`);
+      onTaskClick(task);
+    } else {
+      console.log(`[SortableTaskCard] Conditions NOT met. e.button: ${e.button}, typeof onTaskClick: ${typeof onTaskClick}, isDragging: ${isDragging}`);
+    }
+  };
+  
+  const handleContextMenu = (e) => {
+    console.log(`[SortableTaskCard] handleContextMenu triggered for task: ${task.id}`);
+    e.preventDefault(); 
+    e.stopPropagation(); 
+    if (onContextMenu) {
+      console.log(`[SortableTaskCard] Calling onContextMenu for task: ${task.id}`);
+      onContextMenu(e, task);
+    }
+  };
+
+  // console.log(`[SortableTaskCard] Rendering task: ${task.id}, title: ${task.title}, columnId: ${columnId}`);
 
   return (
     <div
@@ -41,13 +66,10 @@ function SortableTaskCard({ task, onContextMenu, columnId }) { // Added columnId
       style={style}                              
       {...attributes}                            
       {...listeners}                             
-      onContextMenu={(e) => {                    
-        if (onContextMenu) {                     
-          onContextMenu(e, task);
-        }
-      }}
+      onClick={handleClick} 
+      onContextMenu={handleContextMenu}
     >
-      <TaskCard task={task} />
+      <TaskCard task={task} /> 
     </div>
   );
 }
