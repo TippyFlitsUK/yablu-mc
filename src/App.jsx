@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useReducer } from 'react';
-import { Edit2, Trash2 as TrashIcon, Check as CheckIcon } from 'lucide-react'; // Renamed icons
+import { Edit2, Trash2 as TrashIcon, Check as CheckIcon } from 'lucide-react';
 import './App.css';
 
 import AppHeader from './components/Header';
@@ -11,16 +11,27 @@ import AddProjectModal from './components/AddProjectModal';
 import ConfirmDeleteProjectModal from './components/ConfirmDeleteProjectModal';
 import CompletedTasksModal from './components/CompletedTasksModal';
 import RecycleBinModal from './components/RecycleBinModal';
+import TaskCard from './components/TaskCard'; 
 
 import { appReducer, initialAppState } from './reducers/appReducer';
 import { loadFromStorage, saveToStorage, STORAGE_KEYS } from './utils/storage';
 import { DAYS } from './utils/constants';
 
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  rectIntersection, 
+  DragOverlay, 
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
+  const [isStateInitialized, setIsStateInitialized] = useState(false); // New state for initialization tracking
 
-  // UI State (modals, context menus) - kept separate from core data reducer for now
   const [editingTask, setEditingTask] = useState(null);
   const [editingProject, setEditingProject] = useState(null);
   const [projectToDelete, setProjectToDelete] = useState(null);
@@ -30,9 +41,18 @@ function App() {
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [taskContextMenu, setTaskContextMenu] = useState({ visible: false, x: 0, y: 0, item: null });
   const [projectContextMenu, setProjectContextMenu] = useState({ visible: false, x: 0, y: 0, item: null });
+  const [activeDragItem, setActiveDragItem] = useState(null);
 
-  // Load initial state from localStorage and initialize reducer
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Load initial state
   useEffect(() => {
+    console.log("[App.jsx] Attempting to load initial state from localStorage.");
     const loadedProjectDefs = loadFromStorage(STORAGE_KEYS.PROJECT_DEFINITIONS);
     const loadedTasks = loadFromStorage(STORAGE_KEYS.TASKS);
     const loadedDeletedTasks = loadFromStorage(STORAGE_KEYS.DELETED_TASKS);
@@ -41,40 +61,69 @@ function App() {
     dispatch({
       type: 'INITIALIZE_STATE',
       payload: {
-        projectDefinitions: loadedProjectDefs, // Reducer handles null by using defaults
-        tasks: loadedTasks, // Reducer handles null
+        projectDefinitions: loadedProjectDefs,
+        tasks: loadedTasks,
         deletedTasks: loadedDeletedTasks || [],
         completedTasks: loadedCompletedTasks || [],
       }
     });
-  }, []);
+    setIsStateInitialized(true); // Mark state as initialized AFTER dispatch
+    console.log("[App.jsx] State initialization attempt complete. isStateInitialized set to true.");
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Save state to localStorage whenever core data changes
+  // Save state to localStorage whenever core data changes, BUT ONLY if state has been initialized
   useEffect(() => {
-    if (state.projectDefinitions && state.projectDefinitions.length > 0) {
-        saveToStorage(STORAGE_KEYS.PROJECT_DEFINITIONS, state.projectDefinitions);
+    if (!isStateInitialized) {
+      console.log("[App.jsx] Save useEffect: Skipping save, state not yet initialized.");
+      return; // Don't save if the initial state load hasn't happened
     }
-    if (state.tasks && state.tasks.master && Object.keys(state.tasks.master).length > 0) { // Check if tasks.master is populated
-        saveToStorage(STORAGE_KEYS.TASKS, state.tasks);
-    }
-    if (state.deletedTasks) { // No minimum length check, empty array is valid
-        saveToStorage(STORAGE_KEYS.DELETED_TASKS, state.deletedTasks);
-    }
-    if (state.completedTasks) {
-        saveToStorage(STORAGE_KEYS.COMPLETED_TASKS, state.completedTasks);
-    }
-  }, [state.projectDefinitions, state.tasks, state.deletedTasks, state.completedTasks]);
 
-  // Auto-cleanup old deleted tasks (e.g., older than 30 days)
+    console.log("[App.jsx] Save useEffect: Attempting to save state. Current state:", {
+      projectDefinitions: state.projectDefinitions,
+      tasks: state.tasks,
+      // deletedTasks: state.deletedTasks, // Log less to avoid large objects if not needed for this debug
+      // completedTasks: state.completedTasks
+    });
+
+    if (state.projectDefinitions && Array.isArray(state.projectDefinitions)) {
+      // console.log("[App.jsx] Saving projectDefinitions to localStorage:", state.projectDefinitions);
+      saveToStorage(STORAGE_KEYS.PROJECT_DEFINITIONS, state.projectDefinitions);
+    } else {
+      // console.warn("[App.jsx] Not saving projectDefinitions - state.projectDefinitions is not an array or is null/undefined.", state.projectDefinitions);
+    }
+
+    if (state.tasks && typeof state.tasks === 'object' && state.tasks !== null) {
+      // console.log("[App.jsx] Saving tasks to localStorage:", state.tasks);
+      saveToStorage(STORAGE_KEYS.TASKS, state.tasks);
+    } else {
+      // console.warn("[App.jsx] Not saving tasks - state.tasks is not an object or is null.", state.tasks);
+    }
+    
+    if (state.deletedTasks) {
+      // console.log("[App.jsx] Saving deletedTasks to localStorage:", state.deletedTasks);
+      saveToStorage(STORAGE_KEYS.DELETED_TASKS, state.deletedTasks);
+    } else {
+      //  console.warn("[App.jsx] Not saving deletedTasks - state.deletedTasks is null/undefined.", state.deletedTasks);
+    }
+
+    if (state.completedTasks) {
+      // console.log("[App.jsx] Saving completedTasks to localStorage:", state.completedTasks);
+      saveToStorage(STORAGE_KEYS.COMPLETED_TASKS, state.completedTasks);
+    } else {
+      // console.warn("[App.jsx] Not saving completedTasks - state.completedTasks is null/undefined.", state.completedTasks);
+    }
+    console.log("[App.jsx] Save useEffect: Save attempt finished.");
+  }, [state.projectDefinitions, state.tasks, state.deletedTasks, state.completedTasks, isStateInitialized]); // Added isStateInitialized
+
+
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       dispatch({ type: 'CLEANUP_OLD_DELETED_TASKS' });
-    }, 24 * 60 * 60 * 1000); // Once a day
-    dispatch({ type: 'CLEANUP_OLD_DELETED_TASKS' }); // Initial cleanup
+    }, 24 * 60 * 60 * 1000);
+    dispatch({ type: 'CLEANUP_OLD_DELETED_TASKS' }); // Initial cleanup on load, after state is initialized
     return () => clearInterval(cleanupInterval);
-  }, []);
+  }, []); // This will run after the first render.
 
-  // Global click listener to close context menus
   useEffect(() => {
     const handleClick = () => {
       if (taskContextMenu.visible) setTaskContextMenu(prev => ({ ...prev, visible: false }));
@@ -85,22 +134,20 @@ function App() {
   }, [taskContextMenu.visible, projectContextMenu.visible]);
 
 
-  // Context Menu Handlers
   const handleTaskContextMenu = (event, task) => {
     event.preventDefault();
     event.stopPropagation();
-    setProjectContextMenu(prev => ({ ...prev, visible: false }));
+    setProjectContextMenu(prev => ({ ...prev, visible: false })); 
     setTaskContextMenu({ visible: true, x: event.clientX, y: event.clientY, item: task });
   };
 
   const handleProjectContextMenu = (event, project) => {
     event.preventDefault();
     event.stopPropagation();
-    setTaskContextMenu(prev => ({ ...prev, visible: false }));
+    setTaskContextMenu(prev => ({ ...prev, visible: false })); 
     setProjectContextMenu({ visible: true, x: event.clientX, y: event.clientY, item: project });
   };
 
-  // Modal Open/Close Handlers
   const handleOpenAddProjectModal = () => setShowAddProjectModal(true);
   const handleCloseAddProjectModal = () => setShowAddProjectModal(false);
 
@@ -112,7 +159,7 @@ function App() {
 
   const handleOpenDeleteProjectModal = (project) => {
     let hasTasks = false;
-    if (state.tasks) { // Ensure state.tasks is not null/undefined
+    if (state.tasks) {
         for (const columnKey of Object.keys(state.tasks)) {
             if (state.tasks[columnKey] && state.tasks[columnKey].some(taskItem => taskItem.type === 'task' && taskItem.projectId === project.id)) {
                 hasTasks = true;
@@ -125,8 +172,6 @@ function App() {
   };
   const handleCloseDeleteProjectModal = () => setProjectToDelete(null);
 
-
-  // Action Dispatchers (delegating logic to reducer)
   const handleSaveNewProject = (title, color) => {
     dispatch({ type: 'ADD_PROJECT', payload: { title, color } });
     handleCloseAddProjectModal();
@@ -153,7 +198,56 @@ function App() {
   const handleMarkIncompleteAction = (completedTaskRecord) => dispatch({ type: 'MARK_INCOMPLETE', payload: completedTaskRecord });
   const handlePermanentDeleteTaskAction = (taskId) => dispatch({ type: 'PERMANENT_DELETE_TASK', payload: taskId });
 
-  // Context Menu Action Definitions
+  function handleDragStart(event) {
+    const { active } = event;
+    if (active.data.current?.type === 'task') {
+      setActiveDragItem(active.data.current.task);
+    }
+  }
+
+  function handleDragEnd(event) {
+    const { active, over } = event;
+    setActiveDragItem(null); 
+
+    if (!over) {
+      return; 
+    }
+
+    if (active.id.startsWith('project-')) {
+        return;
+    }
+    
+    const activeContainer = active.data.current?.originalColumnId; 
+    let overContainer;
+    if (over.data.current?.originalColumnId) { 
+        overContainer = over.data.current.originalColumnId;
+    } else { 
+        overContainer = over.id;
+    }
+
+    if (active.id === over.id && activeContainer === overContainer) {
+      // No actual move, but reducer might still reorder if indices differ due to other logic
+    }
+    
+    if (!activeContainer || !overContainer) {
+        return;
+    }
+
+    dispatch({
+      type: 'MOVE_TASK',
+      payload: {
+        activeId: active.id,
+        overId: over.id, 
+        activeContainer,
+        overContainer,
+      },
+    });
+  }
+
+  function handleDragCancel() {
+    setActiveDragItem(null);
+  }
+
   const taskContextMenuActions = [
     { label: 'Edit', handler: handleOpenEditTaskModal, icon: <Edit2 size={14} />, className: 'edit-btn' },
     { label: 'Delete', handler: handleDeleteTaskAction, icon: <TrashIcon size={14} />, className: 'delete-btn' },
@@ -166,95 +260,109 @@ function App() {
   ];
 
   return (
-    <div className="app">
-      <AppHeader
-        onOpenAddProjectModal={handleOpenAddProjectModal}
-        onShowCompletedTasks={() => setShowCompletedTasks(true)}
-        onShowRecycleBin={() => setShowRecycleBin(true)}
-        recycleBinCount={state.deletedTasks?.length || 0}
-      />
-
-      <div className="planner-container">
-        <Column
-          id="master"
-          title="Master Tasks"
-          items={state.tasks?.master || []}
-          isMaster={true}
-          onTaskContextMenu={handleTaskContextMenu}
-          onProjectContextMenu={handleProjectContextMenu}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={rectIntersection} 
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <div className="app">
+        <AppHeader
+          onOpenAddProjectModal={handleOpenAddProjectModal}
+          onShowCompletedTasks={() => setShowCompletedTasks(true)}
+          onShowRecycleBin={() => setShowRecycleBin(true)}
+          recycleBinCount={state.deletedTasks?.length || 0}
         />
-        <div className="week-columns">
-          {DAYS.map(day => (
-            <Column
-              key={day}
-              id={day.toLowerCase()}
-              title={day}
-              items={state.tasks && state.tasks[day.toLowerCase()] ? state.tasks[day.toLowerCase()] : []}
-              onTaskContextMenu={handleTaskContextMenu}
-              // No project context menu for day columns
-            />
-          ))}
+
+        <div className="planner-container">
+          <Column
+            id="master" 
+            title="Master Tasks"
+            items={state.tasks?.master || []}
+            isMaster={true}
+            onProjectContextMenu={handleProjectContextMenu}
+            onTaskContextMenu={handleTaskContextMenu} 
+          />
+          <div className="week-columns">
+            {DAYS.map(day => (
+              <Column
+                key={day}
+                id={day.toLowerCase()} 
+                title={day}
+                items={(state.tasks && state.tasks[day.toLowerCase()]) ? state.tasks[day.toLowerCase()] : []}
+                onTaskContextMenu={handleTaskContextMenu} 
+              />
+            ))}
+          </div>
         </div>
+
+        <DragOverlay dropAnimation={null}>
+          {activeDragItem ? (
+            <TaskCard task={activeDragItem} /> 
+          ) : null}
+        </DragOverlay>
+
+        <AppContextMenu
+          menuData={taskContextMenu}
+          actions={taskContextMenuActions}
+          onClose={() => setTaskContextMenu(prev => ({ ...prev, visible: false }))}
+        />
+        <AppContextMenu
+          menuData={projectContextMenu}
+          actions={projectContextMenuActions}
+          onClose={() => setProjectContextMenu(prev => ({ ...prev, visible: false }))}
+        />
+
+        {editingTask && (
+          <EditTaskModal
+            task={editingTask}
+            projectDefinitions={state.projectDefinitions || []}
+            onSave={handleSaveEditedTask}
+            onCancel={handleCloseEditTaskModal}
+          />
+        )}
+        {editingProject && (
+          <EditProjectModal
+            project={editingProject}
+            onSave={handleSaveEditedProject}
+            onCancel={handleCloseEditProjectModal}
+          />
+        )}
+        {showAddProjectModal && (
+          <AddProjectModal
+            onSave={handleSaveNewProject}
+            onCancel={handleCloseAddProjectModal}
+          />
+        )}
+        {projectToDelete && (
+          <ConfirmDeleteProjectModal
+            project={projectToDelete}
+            hasOutstandingTasks={hasOutstandingTasksForDelete}
+            onConfirmDeleteEmpty={confirmDeleteEmptyProject}
+            onCancel={handleCloseDeleteProjectModal}
+          />
+        )}
+        {showCompletedTasks && (
+          <CompletedTasksModal
+            completedTasks={state.completedTasks || []}
+            projectDefinitions={state.projectDefinitions || []}
+            onMarkIncomplete={handleMarkIncompleteAction}
+            onClose={() => setShowCompletedTasks(false)}
+          />
+        )}
+        {showRecycleBin && (
+          <RecycleBinModal
+            deletedTasks={state.deletedTasks || []}
+            onRestore={handleRestoreTaskAction}
+            onPermanentDelete={handlePermanentDeleteTaskAction}
+            onClose={() => setShowRecycleBin(false)}
+          />
+        )}
       </div>
-
-      <AppContextMenu
-        menuData={taskContextMenu}
-        actions={taskContextMenuActions}
-        onClose={() => setTaskContextMenu(prev => ({ ...prev, visible: false }))}
-      />
-      <AppContextMenu
-        menuData={projectContextMenu}
-        actions={projectContextMenuActions}
-        onClose={() => setProjectContextMenu(prev => ({ ...prev, visible: false }))}
-      />
-
-      {editingTask && (
-        <EditTaskModal
-          task={editingTask}
-          projectDefinitions={state.projectDefinitions || []}
-          onSave={handleSaveEditedTask}
-          onCancel={handleCloseEditTaskModal}
-        />
-      )}
-      {editingProject && (
-        <EditProjectModal
-          project={editingProject}
-          onSave={handleSaveEditedProject}
-          onCancel={handleCloseEditProjectModal}
-        />
-      )}
-      {showAddProjectModal && (
-        <AddProjectModal
-          onSave={handleSaveNewProject}
-          onCancel={handleCloseAddProjectModal}
-        />
-      )}
-      {projectToDelete && (
-        <ConfirmDeleteProjectModal
-          project={projectToDelete}
-          hasOutstandingTasks={hasOutstandingTasksForDelete}
-          onConfirmDeleteEmpty={confirmDeleteEmptyProject}
-          onCancel={handleCloseDeleteProjectModal}
-        />
-      )}
-      {showCompletedTasks && (
-        <CompletedTasksModal
-          completedTasks={state.completedTasks || []}
-          projectDefinitions={state.projectDefinitions || []}
-          onMarkIncomplete={handleMarkIncompleteAction}
-          onClose={() => setShowCompletedTasks(false)}
-        />
-      )}
-      {showRecycleBin && (
-        <RecycleBinModal
-          deletedTasks={state.deletedTasks || []}
-          onRestore={handleRestoreTaskAction}
-          onPermanentDelete={handlePermanentDeleteTaskAction}
-          onClose={() => setShowRecycleBin(false)}
-        />
-      )}
-    </div>
+    </DndContext>
   );
 }
 
 export default App;
+

@@ -35,7 +35,7 @@
   flex-direction: column;
 }
 
-/* Header Component Styles (Moved from App.jsx context) */
+/* Header Component Styles */
 .app-header {
   background: var(--bg-header);
   color: white;
@@ -114,19 +114,18 @@
 
 .planner-container {
   display: flex;
-  flex-grow: 1; /* Allows container to fill remaining space */
-  min-height: 0; /* Fixes flexbox overflow issues in some browsers */
+  flex-grow: 1; 
+  min-height: 0; 
 }
 
-/* Master List Column - Applied specific class */
 .master-tasks-column {
   width: 280px;
   min-width: 280px;
   max-width: 280px;
   background: linear-gradient(180deg, #000000 0%, #1f2937 100%);
   border-right: 2px solid var(--border-main);
-  padding: 0 20px 20px 20px;
-  overflow-y: auto; /* Changed from scroll to auto */
+  padding: 0 20px 20px 20px; 
+  overflow-y: auto; 
   flex-shrink: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -137,7 +136,6 @@
   display: none;
 }
 
-/* General Day Header Styles */
 .day-header {
   font-weight: 600;
   color: var(--text-main);
@@ -150,7 +148,6 @@
   letter-spacing: 0.025em;
 }
 
-/* Specific styles for the Master Task List Header */
 .master-tasks-column .day-header {
   position: sticky;
   top: 0;
@@ -160,27 +157,26 @@
   margin-bottom: 0;
 }
 
-/* Week Columns */
 .week-columns {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   background: var(--bg-main);
   gap: 0;
-  overflow-y: auto; /* Added for potential vertical scroll within week columns area */
+  overflow-y: auto; 
 }
 
 .week-columns .day-column {
   border-right: 1px solid var(--border-main);
-  padding: 20px 16px;
+  padding: 20px 16px; 
   display: flex;
   flex-direction: column;
-  min-height: 100%; /* Ensure columns try to take full height */
-  width: 100%;
-  min-width: 0;
+  min-height: 100%; 
+  min-width: 0; 
+  box-sizing: border-box; 
   position: relative;
   transition: all 0.2s ease;
-  overflow-y: auto; /* Allow individual day columns to scroll if content overflows */
+  overflow-y: auto; 
   scrollbar-width: thin;
   scrollbar-color: var(--border-light) var(--bg-main);
 }
@@ -203,33 +199,88 @@
 
 .task-list {
   flex: 1;
-  min-height: 150px; /* Adjusted min-height */
+  min-height: 150px; 
   position: relative;
-  /* overflow: hidden; Removed, handled by column scroll */
+  padding-top: 8px; 
+  padding-bottom: 8px;
+  width: 100%; 
+  box-sizing: border-box;
 }
 
 .week-columns .task-list {
-  overflow: visible; /* Keep this if tasks might visually overflow their immediate bounds slightly (e.g. shadows) */
+  overflow: visible; 
 }
 
 .master-tasks-column .task-list > *:first-child {
   margin-top: 16px;
 }
 
+/* Styling for the wrapper div rendered by SortableTaskCard (and ProjectHeader if it becomes sortable) */
+/* This targets the direct children of .task-list that are divs (our sortable wrappers) */
+.task-list > div { 
+  margin-bottom: 8px; 
+  box-sizing: border-box; 
+}
 
-/* Base Task Card */
+/* Specifically for sortable wrappers (direct div children of task-list) inside .week-columns */
+.week-columns .task-list > div {
+   width: 100%; 
+}
+
+
+/* Base Task Card - General Styling */
 .task-card {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-main);
   padding: 12px;
-  margin-bottom: 8px;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-  user-select: none;
+  user-select: none; 
   color: var(--text-main);
   position: relative;
+  box-sizing: border-box; 
+  /* No general width: 100% here */
 }
+
+/* Project Headers - General Styling */
+.project-header {
+  background: var(--bg-card);
+  border-radius: var(--radius-main);
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: default; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  border-left: 5px solid; 
+  color: var(--text-main);
+  position: relative;
+  user-select: none; 
+  box-sizing: border-box; 
+  /* No general width: 100% here */
+}
+
+/* ALL Task cards and Project Headers specifically within .week-columns should fill their wrapper */
+.week-columns .task-list > div > .task-card,
+.week-columns .task-list > div > .project-header { /* Project headers are unlikely in week columns */
+  width: 100%;
+  margin-left: 0 !important; /* Override any sub-task margin when in week columns */
+}
+
+/* Sub-tasks - General styling for border and font */
+.task-card.sub-task {
+  font-size: 0.95rem;
+  border-left-width: 3px; 
+  border-left-style: solid; 
+  /* margin-left is now context-specific */
+}
+
+/* Margin for sub-tasks ONLY in the master list */
+.master-tasks-column .task-card.sub-task {
+  margin-left: 24px; 
+  /* width: auto; /* Allow natural width in master list after margin */
+}
+
 
 .task-card:hover {
   border-color: #9ca3af;
@@ -240,21 +291,6 @@
   font-weight: 500;
   color: var(--text-main);
   line-height: 1.4;
-}
-
-/* Project Headers */
-.project-header {
-  background: var(--bg-card);
-  border-radius: var(--radius-main);
-  padding: 14px 16px;
-  margin-bottom: 8px;
-  font-weight: 700;
-  font-size: 1.1rem;
-  cursor: default;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  border-left: 5px solid; /* Default, overridden by color class */
-  color: var(--text-main);
-  position: relative;
 }
 
 .project-title-container {
@@ -307,21 +343,21 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px; /* Added padding for smaller screens */
+  padding: 20px; 
 }
 
 .modal-content {
   background: var(--bg-card);
   border-radius: 12px;
   padding: 0;
-  min-width: 300px; /* Adjusted for smaller screens */
-  width: 90%; /* Use percentage for responsiveness */
+  min-width: 300px; 
+  width: 90%; 
   max-width: 600px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
   border: 1px solid var(--border-main);
-  display: flex; /* Added for flex column layout */
-  flex-direction: column; /* Added for flex column layout */
-  max-height: 90vh; /* Ensure modal doesn't overflow viewport */
+  display: flex; 
+  flex-direction: column; 
+  max-height: 90vh; 
 }
 
 .modal-header {
@@ -330,7 +366,7 @@
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-main);
-  flex-shrink: 0; /* Prevent header from shrinking */
+  flex-shrink: 0; 
 }
 
 .modal-header h2 {
@@ -363,8 +399,8 @@
   padding: 24px;
   color: var(--text-main);
   line-height: 1.6;
-  overflow-y: auto; /* Allow modal body to scroll */
-  flex-grow: 1; /* Allow body to take available space */
+  overflow-y: auto; 
+  flex-grow: 1; 
 }
 
 .modal-body p {
@@ -385,7 +421,7 @@
 
 .modal-form {
   padding: 24px;
-  overflow-y: auto; /* Allow form to scroll if content is too long */
+  overflow-y: auto; 
   flex-grow: 1;
 }
 
@@ -456,7 +492,7 @@
   justify-content: flex-end;
   padding: 20px 24px;
   border-top: 1px solid var(--border-main);
-  flex-shrink: 0; /* Prevent actions from shrinking */
+  flex-shrink: 0; 
 }
 
 .modal-btn {
@@ -512,15 +548,13 @@
 
 /* Recycle Bin & Completed Tasks Modals */
 .recycle-modal, .completed-modal {
-  min-width: 300px; /* Adjusted for smaller screens */
+  min-width: 300px; 
   width: 90%;
-  max-width: 700px; /* Max width for larger screens */
+  max-width: 700px; 
 }
 
-.recycle-content, .completed-content {
+.recycle-content, .completed-content { 
   padding: 24px;
-  /* max-height: 60vh; Removed, handled by modal-body */
-  /* overflow-y: auto; Removed, handled by modal-body */
 }
 
 .empty-recycle, .empty-completed {
@@ -560,17 +594,17 @@
 
 .deleted-task-info, .completed-task-info {
   flex: 1;
-  margin-right: 12px; /* Added margin for spacing */
-  overflow: hidden; /* Prevent long text from breaking layout */
+  margin-right: 12px; 
+  overflow: hidden; 
 }
 
 .deleted-task-title, .completed-task-title {
   color: var(--text-main);
   font-weight: 500;
   margin-bottom: 4px;
-  white-space: nowrap; /* Prevent title wrap */
-  overflow: hidden; /* Hide overflow */
-  text-overflow: ellipsis; /* Add ellipsis for overflow */
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
 }
 .completed-task-title {
   display: flex;
@@ -605,7 +639,7 @@
 .deleted-task-actions, .completed-task-actions {
   display: flex;
   gap: 8px;
-  flex-shrink: 0; /* Prevent buttons from shrinking */
+  flex-shrink: 0; 
 }
 
 .restore-btn,
@@ -647,7 +681,7 @@
 
 .completed-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Responsive columns */
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 24px;
@@ -690,13 +724,6 @@
 .completed-task-item.project-indigo { border-left-color: var(--project-indigo); }
 
 
-/* Sub-tasks */
-.task-card.sub-task {
-  margin-left: 24px;
-  font-size: 0.95rem;
-  border-left: 3px solid; /* Default, will be overridden by color class */
-}
-
 /* Context Menu Styles */
 .context-menu {
   position: fixed;
@@ -709,7 +736,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 180px; /* Ensure context menu has some width */
+  min-width: 180px; 
 }
 
 .context-menu-btn {
@@ -751,14 +778,28 @@
     color: #22c55e;
 }
 
+/* DND Specific Styles */
+.day-column.droppable-highlight .task-list {
+  background-color: rgba(59, 130, 246, 0.08); 
+  border: 1px dashed rgba(59, 130, 246, 0.4);
+  border-radius: var(--radius-main);
+  min-height: 100px; 
+}
+
+
+.drag-overlay-item {
+  box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+  border-radius: var(--radius-main);
+}
+
 
 /* Responsive */
 @media (max-width: 1200px) {
   .week-columns {
-    grid-template-columns: repeat(3, 1fr); /* 3 columns for medium screens */
+    grid-template-columns: repeat(3, 1fr); 
   }
   
-  .week-columns .day-column:nth-child(3n) { /* Adjust border for 3 columns */
+  .week-columns .day-column:nth-child(3n) { 
     border-right: none;
   }
   .week-columns .day-column:not(:nth-child(3n)) {
@@ -774,50 +815,51 @@
   .app-header h1 { font-size: 2rem; }
   .app-header p { font-size: 1rem; }
   .header-buttons {
-    position: static; /* Stack buttons below title on small screens */
+    position: static; 
     margin-top: 16px;
     justify-content: center;
   }
 
   .planner-container {
     flex-direction: column;
-    height: auto; /* Allow height to adjust to content */
+    height: auto; 
   }
   
   .master-tasks-column {
     width: 100%;
-    max-height: 250px; /* Increased max-height slightly */
-    border-right: none; /* No right border when stacked */
-    border-bottom: 2px solid var(--border-main); /* Add bottom border */
+    max-height: 300px; 
+    border-right: none; 
+    border-bottom: 2px solid var(--border-main); 
   }
   
   .week-columns {
-    grid-template-columns: repeat(2, 1fr); /* 2 columns for small screens */
+    grid-template-columns: repeat(2, 1fr); 
     height: auto;
   }
-   .week-columns .day-column:nth-child(2n) { /* Adjust border for 2 columns */
+   .week-columns .day-column:nth-child(2n) { 
     border-right: none;
   }
   .week-columns .day-column:not(:nth-child(2n)) {
      border-right: 1px solid var(--border-main);
   }
-   .week-columns .day-column:nth-child(n+3) { /* Adjust top border for 2 columns */
+   .week-columns .day-column:nth-child(n+3) { 
     border-top: 1px solid var(--border-main);
   }
 
   .week-columns .day-column {
-    min-height: 250px; /* Increased min-height */
+    min-height: 250px; 
   }
 }
 
 @media (max-width: 600px) {
     .week-columns {
-        grid-template-columns: 1fr; /* Single column for very small screens */
+        grid-template-columns: 1fr; 
     }
     .week-columns .day-column {
-        border-right: none !important; /* Remove all right borders */
+        border-right: none !important; 
     }
-    .week-columns .day-column:not(:first-child) { /* Add top border for all but first */
+    .week-columns .day-column:not(:first-child) { 
         border-top: 1px solid var(--border-main);
     }
 }
+
