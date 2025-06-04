@@ -3,12 +3,22 @@
   --project-red: #ef4444;
   --project-green: #22c55e;
   --project-blue: #3b82f6;
+  --project-orange: #f97316;
+  --project-purple: #8b5cf6;
+  --project-pink: #ec4899;
+  --project-teal: #14b8a6;
+  --project-yellow: #facc15;
+  --project-lime: #a3e635;
+  --project-cyan: #22d3ee;
+  --project-indigo: #6366f1;
   --bg-main: linear-gradient(135deg, #111827 0%, #1f2937 100%);
   --bg-card: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  --bg-header-column: #111827; 
   --bg-header: linear-gradient(135deg, #000000 0%, #374151 100%);
   --border-main: #4b5563;
   --border-light: #6b7280;
   --text-main: #f3f4f6;
+  --text-warning: #fde047; 
   --radius-main: 8px;
 }
 
@@ -51,8 +61,8 @@
   gap: 12px;
 }
 
-.completed-tasks-btn,
-.recycle-bin-btn {
+/* Common style for all header action buttons */
+.header-action-btn {
   background: rgba(107, 114, 128, 0.2);
   border: 1px solid #6b7280;
   border-radius: 8px;
@@ -66,17 +76,24 @@
   position: relative;
 }
 
+.header-action-btn:hover { 
+  background: rgba(107, 114, 128, 0.3);
+  color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
 .completed-tasks-btn:hover {
   background: rgba(34, 197, 94, 0.2);
   color: #22c55e;
   border-color: #22c55e;
 }
 
-.recycle-bin-btn:hover {
-  background: rgba(107, 114, 128, 0.3);
-  color: #f3f4f6;
-  border-color: #9ca3af;
+.add-new-project-btn:hover {
+  background: rgba(59, 130, 246, 0.2); 
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
 }
+
 
 .recycle-count {
   position: absolute;
@@ -107,23 +124,46 @@
   max-width: 280px;
   background: linear-gradient(180deg, #000000 0%, #1f2937 100%);
   border-right: 2px solid var(--border-main);
-  padding: 20px;
-  overflow-y: scroll;
+  padding: 0 20px 20px 20px; 
+  overflow-y: scroll; 
   flex-shrink: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  position: relative; 
 }
 
 .planner-container > .day-column:first-child::-webkit-scrollbar {
   display: none;
 }
 
-.planner-container > .day-column:first-child .day-header {
-  font-size: 1.25rem;
+/* General Day Header Styles */
+.day-header {
   font-weight: 600;
-  text-transform: none;
-  letter-spacing: normal;
+  color: var(--text-main);
+  margin-bottom: 16px; 
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border-main);
+  text-align: center;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
+
+/* Specific styles for the Master Task List Header to make it sticky and visually consistent */
+.planner-container > .day-column:first-child .day-header {
+  font-size: 0.95rem; 
+  text-transform: uppercase; 
+  letter-spacing: 0.025em; 
+  position: sticky;
+  top: 0;
+  background: var(--bg-header-column); 
+  z-index: 10; 
+  padding-top: 20px; 
+  margin-bottom: 0; 
+  display: block; 
+  text-align: center;
+}
+
 
 /* Week Columns */
 .week-columns {
@@ -136,7 +176,7 @@
 
 .week-columns .day-column {
   border-right: 1px solid var(--border-main);
-  padding: 20px 16px;
+  padding: 20px 16px; 
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -150,30 +190,23 @@
   border-right: none;
 }
 
-/* Drag over highlight effect - more subtle */
-.day-column.drag-over {
-  background: rgba(59, 130, 246, 0.05);
-  border-color: rgba(59, 130, 246, 0.15);
-}
-
-.day-header {
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--border-main);
-  text-align: center;
-  font-size: 0.95rem;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
+/* Removed .day-column.drag-over */
 
 .task-list {
   flex: 1;
   min-height: 200px;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; 
 }
+
+.week-columns .task-list {
+  overflow: visible; 
+}
+
+.planner-container > .day-column:first-child .task-list > *:first-child {
+  margin-top: 16px; 
+}
+
 
 /* Base Task Card */
 .task-card {
@@ -181,8 +214,8 @@
   border: 1px solid #6b7280;
   border-radius: 8px;
   padding: 12px;
-  margin-bottom: 8px;
-  cursor: grab;
+  margin-bottom: 8px; 
+  /* cursor: grab; Removed, no longer draggable by default */
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   user-select: none;
@@ -193,18 +226,9 @@
 .task-card:hover {
   border-color: #9ca3af;
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  transform: translateY(-1px);
 }
 
-.task-card:active {
-  cursor: grabbing;
-}
-
-.task-card.dragging {
-  opacity: 0.8;
-  transform: rotate(5deg);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.6);
-}
+/* Removed .task-card:active and .task-card.dragging */
 
 .task-title {
   font-weight: 500;
@@ -212,59 +236,64 @@
   line-height: 1.4;
 }
 
-.task-buttons {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+/* Project Headers */
+.project-header {
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 8px; 
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: default; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  border-left: 5px solid; 
+  color: #f3f4f6;
+  position: relative; 
 }
 
-.task-card:hover .task-buttons {
-  opacity: 1;
-}
+/* Removed .project-header.dragging-project, .dragging-project-overlay */
 
-.task-btn {
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  padding: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s ease;
+.project-title-container {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: #f3f4f6;
 }
 
-.task-btn:hover {
-  background: rgba(0, 0, 0, 0.9);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #ffffff;
+/* Removed .drag-handle-project and :active styles */
+
+/* Dynamically generated project color classes will override the default border-left */
+.project-header.project-red { border-left-color: var(--project-red); }
+.project-header.project-green { border-left-color: var(--project-green); }
+.project-header.project-blue { border-left-color: var(--project-blue); }
+.project-header.project-orange { border-left-color: var(--project-orange); }
+.project-header.project-purple { border-left-color: var(--project-purple); }
+.project-header.project-pink { border-left-color: var(--project-pink); }
+.project-header.project-teal { border-left-color: var(--project-teal); }
+.project-header.project-yellow { border-left-color: var(--project-yellow); }
+.project-header.project-lime { border-left-color: var(--project-lime); }
+.project-header.project-cyan { border-left-color: var(--project-cyan); }
+.project-header.project-indigo { border-left-color: var(--project-indigo); }
+
+
+/* Task card sub-task specific color borders */
+.task-card.sub-task.project-red { border-left-color: var(--project-red); }
+.task-card.sub-task.project-green { border-left-color: var(--project-green); }
+.task-card.sub-task.project-blue { border-left-color: var(--project-blue); }
+.task-card.sub-task.project-orange { border-left-color: var(--project-orange); }
+.task-card.sub-task.project-purple { border-left-color: var(--project-purple); }
+.task-card.sub-task.project-pink { border-left-color: var(--project-pink); }
+.task-card.sub-task.project-teal { border-left-color: var(--project-teal); }
+.task-card.sub-task.project-yellow { border-left-color: var(--project-yellow); }
+.task-card.sub-task.project-lime { border-left-color: var(--project-lime); }
+.task-card.sub-task.project-cyan { border-left-color: var(--project-cyan); }
+.task-card.sub-task.project-indigo { border-left-color: var(--project-indigo); }
+
+
+.project-title {
+  font-weight: 700;
+  color: inherit;
+  flex-grow: 1; 
 }
 
-.complete-btn:hover {
-  background: rgba(34, 197, 94, 0.2);
-  border-color: rgba(34, 197, 94, 0.3);
-  color: #22c55e;
-}
-
-.edit-btn:hover {
-  background: rgba(249, 115, 22, 0.2);
-  border-color: rgba(249, 115, 22, 0.3);
-  color: #f97316;
-}
-
-.delete-btn:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #ef4444;
-}
 
 /* Modal Styles */
 .modal-overlay {
@@ -283,7 +312,7 @@
 .modal-content {
   background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
   border-radius: 12px;
-  padding: 0;
+  padding: 0; 
   min-width: 500px;
   max-width: 600px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
@@ -324,6 +353,30 @@
   color: #ef4444;
 }
 
+/* Styles for modal body content */
+.modal-body {
+  padding: 24px;
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+.modal-body p {
+  margin-top: 16px; 
+}
+
+.confirm-delete-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.confirm-delete-modal .warning-icon {
+  color: var(--text-warning); 
+  margin-bottom: 16px;
+}
+
+
 .modal-form {
   padding: 24px;
 }
@@ -357,11 +410,46 @@
   border-color: #3b82f6;
 }
 
+/* Color Picker Styles */
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.color-option {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  border-color: #ffffff; 
+  box-shadow: 0 0 0 2px var(--border-main); 
+}
+
+.color-option svg { 
+  color: white; 
+}
+
+
 .modal-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  margin-top: 24px;
+  padding: 20px 24px; 
+  border-top: 1px solid #4b5563; 
 }
 
 .modal-btn {
@@ -394,6 +482,27 @@
   background: #2563eb;
   border-color: #2563eb;
 }
+
+.modal-btn.delete {
+  background-color: var(--project-red);
+  color: white;
+  border-color: var(--project-red);
+}
+.modal-btn.delete:hover {
+  background-color: #c53030; 
+  border-color: #c53030;
+}
+
+.modal-btn.ok-btn { 
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+.modal-btn.ok-btn:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
 
 /* Recycle Bin Modal */
 .recycle-modal {
@@ -560,21 +669,18 @@
   border-left-width: 4px;
 }
 
-.completed-task-item.project-red {
-  border-left-color: #ef4444;
-}
+.completed-task-item.project-red { border-left-color: var(--project-red); }
+.completed-task-item.project-green { border-left-color: var(--project-green); }
+.completed-task-item.project-blue { border-left-color: var(--project-blue); }
+.completed-task-item.project-orange { border-left-color: var(--project-orange); }
+.completed-task-item.project-purple { border-left-color: var(--project-purple); }
+.completed-task-item.project-pink { border-left-color: var(--project-pink); }
+.completed-task-item.project-teal { border-left-color: var(--project-teal); }
+.completed-task-item.project-yellow { border-left-color: var(--project-yellow); }
+.completed-task-item.project-lime { border-left-color: var(--project-lime); }
+.completed-task-item.project-cyan { border-left-color: var(--project-cyan); }
+.completed-task-item.project-indigo { border-left-color: var(--project-indigo); }
 
-.completed-task-item.project-green {
-  border-left-color: #22c55e;
-}
-
-.completed-task-item.project-blue {
-  border-left-color: #3b82f6;
-}
-
-.completed-task-item.project-orange {
-  border-left-color: #f97316;
-}
 
 .completed-task-info {
   flex: 1;
@@ -634,69 +740,67 @@
   color: #60a5fa;
 }
 
-/* Project Headers */
-.project-header {
-  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  font-weight: 700;
-  font-size: 1.1rem;
-  cursor: default;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  border-left: 5px solid;
-  color: #f3f4f6;
-}
-
-.project-header.project-red {
-  border-left-color: #ef4444;
-}
-
-.project-header.project-green {
-  border-left-color: #22c55e;
-}
-
-.project-header.project-blue {
-  border-left-color: #3b82f6;
-}
-
-.project-header.project-orange {
-  border-left-color: #f97316;
-}
-
-.project-title {
-  font-weight: 700;
-  color: inherit;
-}
-
 /* Sub-tasks */
 .task-card.sub-task {
   margin-left: 24px;
   font-size: 0.95rem;
-  border-left: 3px solid;
+  border-left: 3px solid; /* Default, will be overridden */
 }
 
-.task-card.sub-task.project-red {
-  border-left-color: #ef4444;
+/* Context Menu Styles */
+.context-menu {
+  position: fixed;
+  z-index: 1001; /* Higher than modal overlay */
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.task-card.sub-task.project-green {
-  border-left-color: #22c55e;
+.context-menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-main);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
+  text-align: left;
+  width: 100%;
 }
 
-.task-card.sub-task.project-blue {
-  border-left-color: #3b82f6;
+.context-menu-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-.task-card.sub-task.project-orange {
-  border-left-color: #f97316;
+.context-menu-btn.edit-btn:hover {
+    background: rgba(249, 115, 22, 0.2);
+    color: #f97316;
 }
 
-/* Sub-tasks in day columns */
-.week-columns .task-card.sub-task {
-  margin-left: 0;
-  font-size: 0.9rem;
+.context-menu-btn.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
 }
+.context-menu-btn.delete-project-btn:hover { 
+    background: rgba(239, 68, 68, 0.3); 
+    color: #ef4444;
+}
+
+
+.context-menu-btn.complete-btn:hover {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
 
 /* Responsive */
 @media (max-width: 1200px) {
@@ -717,7 +821,8 @@
   
   .planner-container > .day-column:first-child {
     width: 100%;
-    max-height: 200px;
+    max-height: 200px; 
+    overflow-y: scroll; 
   }
   
   .week-columns {
@@ -729,3 +834,4 @@
     min-height: 200px;
   }
 }
+

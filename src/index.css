@@ -25,7 +25,7 @@ html {
 
 /* Focus styles for accessibility */
 *:focus {
-  outline: 2px solid #4f46e5;
+  outline: 2px solid #4f46e5; /* Changed back to 2px */
   outline-offset: 2px;
 }
 
@@ -36,3 +36,4 @@ html {
   -ms-user-select: none;
   user-select: none;
 }
+
