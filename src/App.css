@@ -13,12 +13,12 @@
   --project-indigo: #6366f1;
   --bg-main: linear-gradient(135deg, #111827 0%, #1f2937 100%);
   --bg-card: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-  --bg-header-column: #111827; 
+  --bg-header-column: #111827;
   --bg-header: linear-gradient(135deg, #000000 0%, #374151 100%);
   --border-main: #4b5563;
   --border-light: #6b7280;
   --text-main: #f3f4f6;
-  --text-warning: #fde047; 
+  --text-warning: #fde047;
   --radius-main: 8px;
 }
 
@@ -31,9 +31,12 @@
   box-shadow: 0 20px 40px rgba(0,0,0,0.5);
   overflow: hidden;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.header {
+/* Header Component Styles (Moved from App.jsx context) */
+.app-header {
   background: var(--bg-header);
   color: white;
   padding: 24px;
@@ -41,14 +44,14 @@
   position: relative;
 }
 
-.header h1 {
+.app-header h1 {
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 8px;
   letter-spacing: -0.025em;
 }
 
-.header p {
+.app-header p {
   opacity: 0.9;
   font-size: 1.1rem;
 }
@@ -61,7 +64,6 @@
   gap: 12px;
 }
 
-/* Common style for all header action buttons */
 .header-action-btn {
   background: rgba(107, 114, 128, 0.2);
   border: 1px solid #6b7280;
@@ -76,7 +78,7 @@
   position: relative;
 }
 
-.header-action-btn:hover { 
+.header-action-btn:hover {
   background: rgba(107, 114, 128, 0.3);
   color: #f3f4f6;
   border-color: #9ca3af;
@@ -89,11 +91,10 @@
 }
 
 .add-new-project-btn:hover {
-  background: rgba(59, 130, 246, 0.2); 
+  background: rgba(59, 130, 246, 0.2);
   color: #60a5fa;
   border-color: rgba(59, 130, 246, 0.3);
 }
-
 
 .recycle-count {
   position: absolute;
@@ -113,26 +114,26 @@
 
 .planner-container {
   display: flex;
-  height: calc(100vh - 140px);
-  min-height: 600px;
+  flex-grow: 1; /* Allows container to fill remaining space */
+  min-height: 0; /* Fixes flexbox overflow issues in some browsers */
 }
 
-/* Master List Column */
-.planner-container > .day-column:first-child {
+/* Master List Column - Applied specific class */
+.master-tasks-column {
   width: 280px;
   min-width: 280px;
   max-width: 280px;
   background: linear-gradient(180deg, #000000 0%, #1f2937 100%);
   border-right: 2px solid var(--border-main);
-  padding: 0 20px 20px 20px; 
-  overflow-y: scroll; 
+  padding: 0 20px 20px 20px;
+  overflow-y: auto; /* Changed from scroll to auto */
   flex-shrink: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  position: relative; 
+  position: relative;
 }
 
-.planner-container > .day-column:first-child::-webkit-scrollbar {
+.master-tasks-column::-webkit-scrollbar {
   display: none;
 }
 
@@ -140,7 +141,7 @@
 .day-header {
   font-weight: 600;
   color: var(--text-main);
-  margin-bottom: 16px; 
+  margin-bottom: 16px;
   padding-bottom: 8px;
   border-bottom: 2px solid var(--border-main);
   text-align: center;
@@ -149,21 +150,15 @@
   letter-spacing: 0.025em;
 }
 
-/* Specific styles for the Master Task List Header to make it sticky and visually consistent */
-.planner-container > .day-column:first-child .day-header {
-  font-size: 0.95rem; 
-  text-transform: uppercase; 
-  letter-spacing: 0.025em; 
+/* Specific styles for the Master Task List Header */
+.master-tasks-column .day-header {
   position: sticky;
   top: 0;
-  background: var(--bg-header-column); 
-  z-index: 10; 
-  padding-top: 20px; 
-  margin-bottom: 0; 
-  display: block; 
-  text-align: center;
+  background: var(--bg-header-column);
+  z-index: 10;
+  padding-top: 20px;
+  margin-bottom: 0;
 }
-
 
 /* Week Columns */
 .week-columns {
@@ -172,54 +167,67 @@
   grid-template-columns: repeat(6, 1fr);
   background: var(--bg-main);
   gap: 0;
+  overflow-y: auto; /* Added for potential vertical scroll within week columns area */
 }
 
 .week-columns .day-column {
   border-right: 1px solid var(--border-main);
-  padding: 20px 16px; 
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  min-height: 100%; /* Ensure columns try to take full height */
   width: 100%;
   min-width: 0;
   position: relative;
   transition: all 0.2s ease;
+  overflow-y: auto; /* Allow individual day columns to scroll if content overflows */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) var(--bg-main);
 }
+.week-columns .day-column::-webkit-scrollbar {
+    width: 8px;
+}
+.week-columns .day-column::-webkit-scrollbar-track {
+    background: var(--bg-main);
+}
+.week-columns .day-column::-webkit-scrollbar-thumb {
+    background-color: var(--border-light);
+    border-radius: 4px;
+    border: 2px solid var(--bg-main);
+}
+
 
 .week-columns .day-column:last-child {
   border-right: none;
 }
 
-/* Removed .day-column.drag-over */
-
 .task-list {
   flex: 1;
-  min-height: 200px;
+  min-height: 150px; /* Adjusted min-height */
   position: relative;
-  overflow: hidden; 
+  /* overflow: hidden; Removed, handled by column scroll */
 }
 
 .week-columns .task-list {
-  overflow: visible; 
+  overflow: visible; /* Keep this if tasks might visually overflow their immediate bounds slightly (e.g. shadows) */
 }
 
-.planner-container > .day-column:first-child .task-list > *:first-child {
-  margin-top: 16px; 
+.master-tasks-column .task-list > *:first-child {
+  margin-top: 16px;
 }
 
 
 /* Base Task Card */
 .task-card {
-  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #6b7280;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-main);
   padding: 12px;
-  margin-bottom: 8px; 
-  /* cursor: grab; Removed, no longer draggable by default */
+  margin-bottom: 8px;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.4);
   user-select: none;
-  color: #f3f4f6;
+  color: var(--text-main);
   position: relative;
 }
 
@@ -228,39 +236,39 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
-/* Removed .task-card:active and .task-card.dragging */
-
 .task-title {
   font-weight: 500;
-  color: #f3f4f6;
+  color: var(--text-main);
   line-height: 1.4;
 }
 
 /* Project Headers */
 .project-header {
-  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-  border-radius: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius-main);
   padding: 14px 16px;
-  margin-bottom: 8px; 
+  margin-bottom: 8px;
   font-weight: 700;
   font-size: 1.1rem;
-  cursor: default; 
+  cursor: default;
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  border-left: 5px solid; 
-  color: #f3f4f6;
-  position: relative; 
+  border-left: 5px solid; /* Default, overridden by color class */
+  color: var(--text-main);
+  position: relative;
 }
-
-/* Removed .project-header.dragging-project, .dragging-project-overlay */
 
 .project-title-container {
   display: flex;
   align-items: center;
 }
 
-/* Removed .drag-handle-project and :active styles */
+.project-title {
+  font-weight: 700;
+  color: inherit;
+  flex-grow: 1;
+}
 
-/* Dynamically generated project color classes will override the default border-left */
+/* Dynamically generated project color classes */
 .project-header.project-red { border-left-color: var(--project-red); }
 .project-header.project-green { border-left-color: var(--project-green); }
 .project-header.project-blue { border-left-color: var(--project-blue); }
@@ -272,7 +280,6 @@
 .project-header.project-lime { border-left-color: var(--project-lime); }
 .project-header.project-cyan { border-left-color: var(--project-cyan); }
 .project-header.project-indigo { border-left-color: var(--project-indigo); }
-
 
 /* Task card sub-task specific color borders */
 .task-card.sub-task.project-red { border-left-color: var(--project-red); }
@@ -288,13 +295,6 @@
 .task-card.sub-task.project-indigo { border-left-color: var(--project-indigo); }
 
 
-.project-title {
-  font-weight: 700;
-  color: inherit;
-  flex-grow: 1; 
-}
-
-
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -307,16 +307,21 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 20px; /* Added padding for smaller screens */
 }
 
 .modal-content {
-  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  background: var(--bg-card);
   border-radius: 12px;
-  padding: 0; 
-  min-width: 500px;
+  padding: 0;
+  min-width: 300px; /* Adjusted for smaller screens */
+  width: 90%; /* Use percentage for responsiveness */
   max-width: 600px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-  border: 1px solid #4b5563;
+  border: 1px solid var(--border-main);
+  display: flex; /* Added for flex column layout */
+  flex-direction: column; /* Added for flex column layout */
+  max-height: 90vh; /* Ensure modal doesn't overflow viewport */
 }
 
 .modal-header {
@@ -324,11 +329,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #4b5563;
+  border-bottom: 1px solid var(--border-main);
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .modal-header h2 {
-  color: #f3f4f6;
+  color: var(--text-main);
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
@@ -353,15 +359,16 @@
   color: #ef4444;
 }
 
-/* Styles for modal body content */
 .modal-body {
   padding: 24px;
   color: var(--text-main);
   line-height: 1.6;
+  overflow-y: auto; /* Allow modal body to scroll */
+  flex-grow: 1; /* Allow body to take available space */
 }
 
 .modal-body p {
-  margin-top: 16px; 
+  margin-top: 16px;
 }
 
 .confirm-delete-modal .modal-body {
@@ -372,13 +379,14 @@
 }
 
 .confirm-delete-modal .warning-icon {
-  color: var(--text-warning); 
+  color: var(--text-warning);
   margin-bottom: 16px;
 }
 
-
 .modal-form {
   padding: 24px;
+  overflow-y: auto; /* Allow form to scroll if content is too long */
+  flex-grow: 1;
 }
 
 .form-group {
@@ -387,7 +395,7 @@
 
 .form-group label {
   display: block;
-  color: #f3f4f6;
+  color: var(--text-main);
   font-weight: 500;
   margin-bottom: 8px;
 }
@@ -396,9 +404,9 @@
 .modal-select {
   width: 100%;
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid #6b7280;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
-  color: #f3f4f6;
+  color: var(--text-main);
   padding: 12px;
   font-size: 1rem;
   outline: none;
@@ -410,7 +418,6 @@
   border-color: #3b82f6;
 }
 
-/* Color Picker Styles */
 .color-picker {
   display: flex;
   flex-wrap: wrap;
@@ -435,21 +442,21 @@
 }
 
 .color-option.selected {
-  border-color: #ffffff; 
-  box-shadow: 0 0 0 2px var(--border-main); 
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px var(--border-main);
 }
 
-.color-option svg { 
-  color: white; 
+.color-option svg {
+  color: white;
 }
-
 
 .modal-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  padding: 20px 24px; 
-  border-top: 1px solid #4b5563; 
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-main);
+  flex-shrink: 0; /* Prevent actions from shrinking */
 }
 
 .modal-btn {
@@ -464,12 +471,12 @@
 .modal-btn.cancel {
   background: rgba(107, 114, 128, 0.2);
   color: #9ca3af;
-  border-color: #6b7280;
+  border-color: var(--border-light);
 }
 
 .modal-btn.cancel:hover {
   background: rgba(107, 114, 128, 0.3);
-  color: #f3f4f6;
+  color: var(--text-main);
 }
 
 .modal-btn.save {
@@ -489,11 +496,11 @@
   border-color: var(--project-red);
 }
 .modal-btn.delete:hover {
-  background-color: #c53030; 
+  background-color: #c53030;
   border-color: #c53030;
 }
 
-.modal-btn.ok-btn { 
+.modal-btn.ok-btn {
   background: #3b82f6;
   color: white;
   border-color: #3b82f6;
@@ -503,69 +510,107 @@
   border-color: #2563eb;
 }
 
-
-/* Recycle Bin Modal */
-.recycle-modal {
-  min-width: 600px;
-  max-width: 700px;
-  max-height: 80vh;
+/* Recycle Bin & Completed Tasks Modals */
+.recycle-modal, .completed-modal {
+  min-width: 300px; /* Adjusted for smaller screens */
+  width: 90%;
+  max-width: 700px; /* Max width for larger screens */
 }
 
-.recycle-content {
+.recycle-content, .completed-content {
   padding: 24px;
-  max-height: 60vh;
-  overflow-y: auto;
+  /* max-height: 60vh; Removed, handled by modal-body */
+  /* overflow-y: auto; Removed, handled by modal-body */
 }
 
-.empty-recycle {
+.empty-recycle, .empty-completed {
   text-align: center;
   padding: 40px 20px;
-  color: #6b7280;
+  color: var(--border-light);
 }
 
-.empty-recycle svg {
+.empty-recycle svg, .empty-completed svg {
   margin: 0 auto 16px;
   opacity: 0.5;
 }
+.empty-completed svg { color: #22c55e; }
+.empty-completed span { font-size: 0.875rem; opacity: 0.7; }
 
-.deleted-tasks-list {
+
+.deleted-tasks-list, .completed-tasks-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.deleted-task-item {
+.deleted-task-item, .completed-task-item {
   background: rgba(0, 0, 0, 0.2);
-  border: 1px solid #4b5563;
-  border-radius: 8px;
+  border: 1px solid var(--border-main);
+  border-radius: var(--radius-main);
   padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
-.deleted-task-info {
-  flex: 1;
+.completed-task-item {
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.2);
+  border-left-width: 4px;
 }
 
-.deleted-task-title {
-  color: #f3f4f6;
+.deleted-task-info, .completed-task-info {
+  flex: 1;
+  margin-right: 12px; /* Added margin for spacing */
+  overflow: hidden; /* Prevent long text from breaking layout */
+}
+
+.deleted-task-title, .completed-task-title {
+  color: var(--text-main);
   font-weight: 500;
   margin-bottom: 4px;
+  white-space: nowrap; /* Prevent title wrap */
+  overflow: hidden; /* Hide overflow */
+  text-overflow: ellipsis; /* Add ellipsis for overflow */
+}
+.completed-task-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.deleted-task-meta {
+.completed-task-title .project-name {
+  color: #d1d5db;
+  font-size: 0.9rem;
+  font-weight: 400;
+  flex-shrink: 0;
+}
+
+.completed-task-title .task-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.completed-icon {
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+.deleted-task-meta, .completed-task-meta {
   color: #9ca3af;
   font-size: 0.875rem;
 }
 
-.deleted-task-actions {
+.deleted-task-actions, .completed-task-actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0; /* Prevent buttons from shrinking */
 }
 
 .restore-btn,
-.permanent-delete-btn {
+.permanent-delete-btn,
+.incomplete-btn {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
@@ -589,44 +634,24 @@
   border-color: rgba(239, 68, 68, 0.3);
   color: #ef4444;
 }
-
-/* Completed Tasks Modal */
-.completed-modal {
-  min-width: 700px;
-  max-width: 800px;
-  max-height: 80vh;
+.incomplete-btn {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
 }
-
-.completed-content {
-  padding: 24px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.empty-completed {
-  text-align: center;
-  padding: 40px 20px;
-  color: #6b7280;
-}
-
-.empty-completed svg {
-  margin: 0 auto 16px;
-  opacity: 0.5;
-  color: #22c55e;
-}
-
-.empty-completed span {
-  font-size: 0.875rem;
-  opacity: 0.7;
+.incomplete-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
 }
 
 .completed-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Responsive columns */
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #4b5563;
+  border-bottom: 1px solid var(--border-main);
 }
 
 .stat-item {
@@ -634,7 +659,7 @@
   padding: 16px;
   background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.2);
-  border-radius: 8px;
+  border-radius: var(--radius-main);
 }
 
 .stat-number {
@@ -652,23 +677,6 @@
   letter-spacing: 0.05em;
 }
 
-.completed-tasks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.completed-task-item {
-  background: rgba(34, 197, 94, 0.05);
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-left-width: 4px;
-}
-
 .completed-task-item.project-red { border-left-color: var(--project-red); }
 .completed-task-item.project-green { border-left-color: var(--project-green); }
 .completed-task-item.project-blue { border-left-color: var(--project-blue); }
@@ -682,83 +690,26 @@
 .completed-task-item.project-indigo { border-left-color: var(--project-indigo); }
 
 
-.completed-task-info {
-  flex: 1;
-}
-
-.completed-task-title {
-  color: #f3f4f6;
-  font-weight: 500;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.completed-task-title .project-name {
-  color: #d1d5db;
-  font-size: 0.9rem;
-  font-weight: 400;
-  flex-shrink: 0;
-}
-
-.completed-task-title .task-text {
-  flex: 1;
-}
-
-.completed-icon {
-  color: #22c55e;
-  flex-shrink: 0;
-}
-
-.completed-task-meta {
-  color: #9ca3af;
-  font-size: 0.875rem;
-}
-
-.completed-task-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.incomplete-btn {
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 6px;
-  padding: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #3b82f6;
-}
-
-.incomplete-btn:hover {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #60a5fa;
-}
-
 /* Sub-tasks */
 .task-card.sub-task {
   margin-left: 24px;
   font-size: 0.95rem;
-  border-left: 3px solid; /* Default, will be overridden */
+  border-left: 3px solid; /* Default, will be overridden by color class */
 }
 
 /* Context Menu Styles */
 .context-menu {
   position: fixed;
-  z-index: 1001; /* Higher than modal overlay */
+  z-index: 1001;
   background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
-  border-radius: 8px;
+  border-radius: var(--radius-main);
   padding: 8px;
   box-shadow: 0 5px 15px rgba(0,0,0,0.5);
   border: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 180px; /* Ensure context menu has some width */
 }
 
 .context-menu-btn {
@@ -790,11 +741,10 @@
     background: rgba(239, 68, 68, 0.2);
     color: #ef4444;
 }
-.context-menu-btn.delete-project-btn:hover { 
-    background: rgba(239, 68, 68, 0.3); 
+.context-menu-btn.delete-project-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
     color: #ef4444;
 }
-
 
 .context-menu-btn.complete-btn:hover {
     background: rgba(34, 197, 94, 0.2);
@@ -805,33 +755,69 @@
 /* Responsive */
 @media (max-width: 1200px) {
   .week-columns {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr); /* 3 columns for medium screens */
   }
   
+  .week-columns .day-column:nth-child(3n) { /* Adjust border for 3 columns */
+    border-right: none;
+  }
+  .week-columns .day-column:not(:nth-child(3n)) {
+     border-right: 1px solid var(--border-main);
+  }
+
   .week-columns .day-column:nth-child(n+4) {
     border-top: 1px solid var(--border-main);
   }
 }
 
 @media (max-width: 800px) {
+  .app-header h1 { font-size: 2rem; }
+  .app-header p { font-size: 1rem; }
+  .header-buttons {
+    position: static; /* Stack buttons below title on small screens */
+    margin-top: 16px;
+    justify-content: center;
+  }
+
   .planner-container {
     flex-direction: column;
-    height: auto;
+    height: auto; /* Allow height to adjust to content */
   }
   
-  .planner-container > .day-column:first-child {
+  .master-tasks-column {
     width: 100%;
-    max-height: 200px; 
-    overflow-y: scroll; 
+    max-height: 250px; /* Increased max-height slightly */
+    border-right: none; /* No right border when stacked */
+    border-bottom: 2px solid var(--border-main); /* Add bottom border */
   }
   
   .week-columns {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr); /* 2 columns for small screens */
     height: auto;
   }
-  
+   .week-columns .day-column:nth-child(2n) { /* Adjust border for 2 columns */
+    border-right: none;
+  }
+  .week-columns .day-column:not(:nth-child(2n)) {
+     border-right: 1px solid var(--border-main);
+  }
+   .week-columns .day-column:nth-child(n+3) { /* Adjust top border for 2 columns */
+    border-top: 1px solid var(--border-main);
+  }
+
   .week-columns .day-column {
-    min-height: 200px;
+    min-height: 250px; /* Increased min-height */
   }
 }
 
+@media (max-width: 600px) {
+    .week-columns {
+        grid-template-columns: 1fr; /* Single column for very small screens */
+    }
+    .week-columns .day-column {
+        border-right: none !important; /* Remove all right borders */
+    }
+    .week-columns .day-column:not(:first-child) { /* Add top border for all but first */
+        border-top: 1px solid var(--border-main);
+    }
+}
