@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useReducer } from 'react';
+import React, { useState, useEffect, useReducer, useRef } from 'react';
 import { Edit2, Trash2 as TrashIcon, Check as CheckIcon, ListPlus, FileText } from 'lucide-react';
 import './App.css';
 
@@ -13,16 +13,19 @@ import AddProjectModal from './components/AddProjectModal';
 import ConfirmDeleteProjectModal from './components/ConfirmDeleteProjectModal';
 import CompletedTasksModal from './components/CompletedTasksModal';
 import RecycleBinModal from './components/RecycleBinModal';
+import GoogleDriveExportModal from './components/GoogleDriveExportModal';
 import TaskCard from './components/TaskCard';
 import ProjectHeader from './components/ProjectHeader'; 
 
 import { appReducer, initialAppState } from './reducers/appReducer';
-import { loadFromStorage, saveToStorage, STORAGE_KEYS } from './utils/storage';
+import dataService from './services/dataService';
+import gdriveService from './services/gdriveService';
 import { DAYS } from './utils/constants';
 
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -34,6 +37,8 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const [isStateInitialized, setIsStateInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [editingTask, setEditingTask] = useState(null); 
   const [detailedTask, setDetailedTask] = useState(null); 
@@ -45,9 +50,12 @@ function App() {
   const [initialProjectIdForModal, setInitialProjectIdForModal] = useState(null);
   const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+  const [showGoogleDriveExportModal, setShowGoogleDriveExportModal] = useState(false);
   const [taskContextMenu, setTaskContextMenu] = useState({ visible: false, x: 0, y: 0, item: null });
   const [projectContextMenu, setProjectContextMenu] = useState({ visible: false, x: 0, y: 0, item: null });
   const [activeDragItem, setActiveDragItem] = useState(null);
+  const scrollAnimationRef = useRef(null);
+  const lastScrollTime = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -55,31 +63,41 @@ function App() {
         distance: 8, 
       },
     }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   useEffect(() => {
-    // console.log("[App.jsx] Initializing state...");
-    const loadedProjectDefs = loadFromStorage(STORAGE_KEYS.PROJECT_DEFINITIONS);
-    const loadedTasks = loadFromStorage(STORAGE_KEYS.TASKS);
-    const loadedDeletedTasks = loadFromStorage(STORAGE_KEYS.DELETED_TASKS);
-    const loadedCompletedTasks = loadFromStorage(STORAGE_KEYS.COMPLETED_TASKS);
-    dispatch({
-      type: 'INITIALIZE_STATE',
-      payload: { projectDefinitions: loadedProjectDefs, tasks: loadedTasks, deletedTasks: loadedDeletedTasks, completedTasks: loadedCompletedTasks }
-    });
-    setIsStateInitialized(true);
-    // console.log("[App.jsx] State initialized.");
+    async function initializeApp() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await dataService.initializeData();
+        dispatch({
+          type: 'INITIALIZE_STATE',
+          payload: {
+            projectDefinitions: data.projectDefinitions || [],
+            tasks: data.tasks || { master: [] },
+            deletedTasks: data.deletedTasks || [],
+            completedTasks: data.completedTasks || []
+          }
+        });
+        setIsStateInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    initializeApp();
   }, []);
 
-  useEffect(() => {
-    if (!isStateInitialized) return;
-    // console.log("[App.jsx] Saving state to localStorage...");
-    if (state.projectDefinitions) saveToStorage(STORAGE_KEYS.PROJECT_DEFINITIONS, state.projectDefinitions);
-    if (state.tasks) saveToStorage(STORAGE_KEYS.TASKS, state.tasks);
-    if (state.deletedTasks) saveToStorage(STORAGE_KEYS.DELETED_TASKS, state.deletedTasks);
-    if (state.completedTasks) saveToStorage(STORAGE_KEYS.COMPLETED_TASKS, state.completedTasks);
-  }, [state.projectDefinitions, state.tasks, state.deletedTasks, state.completedTasks, isStateInitialized]);
 
   useEffect(() => {
     const cleanupInterval = setInterval(() => dispatch({ type: 'CLEANUP_OLD_DELETED_TASKS' }), 24 * 60 * 60 * 1000);
@@ -129,28 +147,243 @@ function App() {
   const handleOpenDeleteProjectModal = (project) => { console.log(`[App.jsx] handleOpenDeleteProjectModal for project: ${project.id}`); const hasTasks = Object.values(state.tasks || {}).flat().some(taskItem => taskItem.type === 'task' && taskItem.projectId === project.id); setHasOutstandingTasksForDelete(hasTasks); setProjectToDelete(project); };
   const handleCloseDeleteProjectModal = () => { console.log("[App.jsx] handleCloseDeleteProjectModal"); setProjectToDelete(null); };
   
-  const handleSaveNewProject = (title, color) => { console.log("[App.jsx] handleSaveNewProject"); dispatch({ type: 'ADD_PROJECT', payload: { title, color } }); handleCloseAddProjectModal(); };
-  const handleSaveNewTask = (title, projectId, projectColor) => { console.log("[App.jsx] handleSaveNewTask"); dispatch({ type: 'ADD_TASK', payload: { title, projectId, projectColor, notes: '' } }); handleCloseAddTaskModal(); }; 
-  
-  const handleSaveEditedProject = (projectId, newTitle, newColor) => { console.log("[App.jsx] handleSaveEditedProject"); dispatch({ type: 'EDIT_PROJECT', payload: { projectId, newTitle, newColor } }); handleCloseEditProjectModal(); };
-  const confirmDeleteEmptyProject = (project) => { console.log("[App.jsx] confirmDeleteEmptyProject"); dispatch({ type: 'DELETE_PROJECT', payload: project }); handleCloseDeleteProjectModal(); };
-  
-  const handleSaveTaskDetails = (taskId, taskData) => { 
-    console.log(`[App.jsx] handleSaveTaskDetails for task ID: ${taskId}`);
-    dispatch({ type: 'EDIT_TASK', payload: { taskId, taskData } }); 
-    handleCloseTaskDetailsModal();
+  const handleSaveNewProject = async (title, color) => { 
+    console.log("[App.jsx] handleSaveNewProject"); 
+    try {
+      const newProject = { id: `project-${Date.now()}`, title, color };
+      await dataService.createProject(newProject);
+      dispatch({ type: 'ADD_PROJECT', payload: { title, color } }); 
+      handleCloseAddProjectModal(); 
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      setError(error.message);
+    }
   };
-  const handleSaveEditedTask = (taskId, taskData) => { 
+  const handleSaveNewTask = async (title, projectId, projectColor) => { 
+    console.log("[App.jsx] handleSaveNewTask"); 
+    try {
+      const newTask = { id: `task-${Date.now()}`, title, projectId, notes: '', container: 'master' };
+      await dataService.createTask(newTask);
+      dispatch({ type: 'ADD_TASK', payload: { title, projectId, projectColor, notes: '' } }); 
+      handleCloseAddTaskModal(); 
+    } catch (error) {
+      console.error('Failed to create task:', error);
+      setError(error.message);
+    }
+  }; 
+  
+  const handleSaveEditedProject = async (projectId, newTitle, newColor) => { 
+    console.log("[App.jsx] handleSaveEditedProject"); 
+    try {
+      await dataService.updateProject(projectId, { title: newTitle, color: newColor });
+      dispatch({ type: 'EDIT_PROJECT', payload: { projectId, newTitle, newColor } }); 
+      handleCloseEditProjectModal(); 
+    } catch (error) {
+      console.error('Failed to update project:', error);
+      setError(error.message);
+    }
+  };
+  const confirmDeleteEmptyProject = async (project) => { 
+    console.log("[App.jsx] confirmDeleteEmptyProject"); 
+    try {
+      await dataService.deleteProject(project.id);
+      dispatch({ type: 'DELETE_PROJECT', payload: project }); 
+      handleCloseDeleteProjectModal(); 
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      setError(error.message);
+    }
+  };
+  
+  const handleSaveTaskDetails = async (taskId, taskData) => { 
+    console.log(`[App.jsx] handleSaveTaskDetails for task ID: ${taskId}`);
+    try {
+      await dataService.updateTask(taskId, taskData);
+      dispatch({ type: 'EDIT_TASK', payload: { taskId, taskData } }); 
+      handleCloseTaskDetailsModal();
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      setError(error.message);
+    }
+  };
+  const handleSaveEditedTask = async (taskId, taskData) => { 
     console.log(`[App.jsx] handleSaveEditedTask for task ID: ${taskId}`);
-    dispatch({ type: 'EDIT_TASK', payload: { taskId, taskData } });
-    handleCloseEditTaskModal();
+    try {
+      await dataService.updateTask(taskId, taskData);
+      dispatch({ type: 'EDIT_TASK', payload: { taskId, taskData } });
+      handleCloseEditTaskModal();
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      setError(error.message);
+    }
   };
 
-  const handleDeleteTaskAction = (task) => { console.log(`[App.jsx] handleDeleteTaskAction for task: ${task.id}`); dispatch({ type: 'DELETE_TASK', payload: task }); };
-  const handleCompleteTaskAction = (task) => { console.log(`[App.jsx] handleCompleteTaskAction for task: ${task.id}`); dispatch({ type: 'COMPLETE_TASK', payload: task }); };
-  const handleRestoreTaskAction = (deletedTaskRecord) => { console.log(`[App.jsx] handleRestoreTaskAction for task: ${deletedTaskRecord.task.id}`); dispatch({ type: 'RESTORE_TASK', payload: deletedTaskRecord }); };
+  const handleDeleteTaskAction = async (task) => { 
+    console.log(`[App.jsx] handleDeleteTaskAction for task: ${task.id}`); 
+    try {
+      await dataService.deleteTask(task.id);
+      dispatch({ type: 'DELETE_TASK', payload: task }); 
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      setError(error.message);
+    }
+  };
+  const handleCompleteTaskAction = async (task) => { 
+    console.log(`[App.jsx] handleCompleteTaskAction for task: ${task.id}`); 
+    try {
+      await dataService.completeTask(task.id);
+      dispatch({ type: 'COMPLETE_TASK', payload: task }); 
+    } catch (error) {
+      console.error('Failed to complete task:', error);
+      setError(error.message);
+    }
+  };
+  const handleRestoreTaskAction = async (deletedTaskRecord) => { 
+    console.log(`[App.jsx] handleRestoreTaskAction for task: ${deletedTaskRecord.task.id}`); 
+    try {
+      await dataService.restoreTask(deletedTaskRecord.task.id);
+      dispatch({ type: 'RESTORE_TASK', payload: deletedTaskRecord }); 
+    } catch (error) {
+      console.error('Failed to restore task:', error);
+      setError(error.message);
+    }
+  };
   const handleMarkIncompleteAction = (completedTaskRecord) => { console.log(`[App.jsx] handleMarkIncompleteAction for task: ${completedTaskRecord.task.id}`); dispatch({ type: 'MARK_INCOMPLETE', payload: completedTaskRecord }); };
   const handlePermanentDeleteTaskAction = (taskId) => { console.log(`[App.jsx] handlePermanentDeleteTaskAction for task ID: ${taskId}`); dispatch({ type: 'PERMANENT_DELETE_TASK', payload: taskId }); };
+
+  const handleScanGoogleDrive = () => {
+    console.log("[App.jsx] handleScanGoogleDrive - Opening modal");
+    setShowGoogleDriveExportModal(true);
+  };
+
+  const handleGoogleDriveExport = async (lookbackHours) => {
+    console.log(`[App.jsx] handleGoogleDriveExport with ${lookbackHours} hours`);
+    
+    try {
+      // Sync files with the specified lookback period
+      const result = await gdriveService.syncFiles(lookbackHours);
+      
+      console.log('Google Drive scan completed:', result);
+      
+      // Always generate export after sync
+      await gdriveService.exportForClaude(lookbackHours);
+      
+      // Return the result data for the modal to display
+      return result;
+    } catch (error) {
+      console.error('Google Drive export failed:', error);
+      throw error; // Re-throw to keep modal open on error
+    }
+  };
+
+  const handleExportData = () => {
+    console.log("[App.jsx] handleExportData");
+    
+    const formatDate = (date) => {
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(date));
+    };
+
+    const getProjectName = (projectId) => {
+      const project = state.projectDefinitions?.find(p => p.id === projectId);
+      return project ? project.title : 'Unknown Project';
+    };
+
+    let exportData = '# YABLU-MC Task Planner Export\n\n';
+    exportData += `Export Date: ${formatDate(new Date())}\n\n`;
+
+    // Projects List
+    exportData += '## Projects\n\n';
+    if (state.projectDefinitions && state.projectDefinitions.length > 0) {
+      state.projectDefinitions.forEach(project => {
+        exportData += `- **${project.title}** (Color: ${project.color})\n`;
+      });
+    } else {
+      exportData += '*No projects defined*\n';
+    }
+    exportData += '\n';
+
+    exportData += '## Task Planner Layout\n\n';
+
+    // Master Tasks Column
+    exportData += '### Master Tasks (Unscheduled)\n\n';
+    const masterTasks = state.tasks?.master?.filter(item => item.type === 'task') || [];
+    if (masterTasks.length > 0) {
+      masterTasks.forEach(task => {
+        const projectName = getProjectName(task.projectId);
+        exportData += `- **${task.title}** (${projectName})\n`;
+        if (task.notes && task.notes.trim()) {
+          // Convert HTML notes to plain text for markdown export
+          const notesText = task.notes.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+          if (notesText) {
+            exportData += `  *Notes: ${notesText}*\n`;
+          }
+        }
+      });
+    } else {
+      exportData += '*No unscheduled tasks*\n';
+    }
+    exportData += '\n';
+
+    // Weekday Columns
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Weekend'];
+    days.forEach(day => {
+      exportData += `### ${day}\n\n`;
+      const dayTasks = state.tasks?.[day.toLowerCase()]?.filter(item => item.type === 'task') || [];
+      if (dayTasks.length > 0) {
+        dayTasks.forEach(task => {
+          const projectName = getProjectName(task.projectId);
+          exportData += `- **${task.title}** (${projectName})\n`;
+          if (task.notes && task.notes.trim()) {
+            // Convert HTML notes to plain text for markdown export
+            const notesText = task.notes.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+            if (notesText) {
+              exportData += `  *Notes: ${notesText}*\n`;
+            }
+          }
+        });
+      } else {
+        exportData += `*No tasks scheduled for ${day}*\n`;
+      }
+      exportData += '\n';
+    });
+
+    // Completed Tasks
+    exportData += '## Completed Tasks\n\n';
+    if (state.completedTasks && state.completedTasks.length > 0) {
+      state.completedTasks.forEach(completedRecord => {
+        const task = completedRecord.task;
+        const projectName = getProjectName(task.projectId);
+        const completedDate = formatDate(completedRecord.completedAt);
+        exportData += `- **${task.title}** (${projectName}) - Completed: ${completedDate}\n`;
+        if (task.notes && task.notes.trim()) {
+          // Convert HTML notes to plain text for markdown export
+          const notesText = task.notes.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+          if (notesText) {
+            exportData += `  *Notes: ${notesText}*\n`;
+          }
+        }
+      });
+    } else {
+      exportData += '*No completed tasks*\n';
+    }
+
+    // Create and download file
+    const blob = new Blob([exportData], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `yablu-mc-export-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   function handleDragStart(event) {
     const { active } = event;
@@ -163,11 +396,65 @@ function App() {
     } else {
       setActiveDragItem(null);
     }
+    
+    // Enable auto-scroll during drag on mobile
+    if (window.innerWidth <= 800) {
+      const plannerContainer = document.querySelector('.planner-container');
+      if (plannerContainer) {
+        plannerContainer.style.scrollBehavior = 'auto';
+      }
+    }
   }
 
-  function handleDragEnd(event) {
+  function handleDragMove(event) {
+    // Auto-scroll on mobile during drag with better throttling
+    if (window.innerWidth <= 800) {
+      const now = Date.now();
+      if (now - lastScrollTime.current < 50) return; // Throttle to max 20fps
+      
+      if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+      }
+      
+      scrollAnimationRef.current = requestAnimationFrame(() => {
+        lastScrollTime.current = now;
+        
+        const plannerContainer = document.querySelector('.planner-container');
+        if (!plannerContainer) return;
+        
+        const containerRect = plannerContainer.getBoundingClientRect();
+        const scrollThreshold = 120;
+        const scrollSpeed = 2;
+        
+        // Use the actual mouse/touch position instead of drag element position
+        const currentPointer = event.active.rect.current.translated;
+        if (!currentPointer) return;
+        
+        const pointerX = currentPointer.left + (currentPointer.width / 2);
+        
+        // Only scroll if we're at the edges and can actually scroll
+        if (pointerX < containerRect.left + scrollThreshold && plannerContainer.scrollLeft > 0) {
+          plannerContainer.scrollBy({ left: -scrollSpeed, behavior: 'auto' });
+        } else if (pointerX > containerRect.right - scrollThreshold) {
+          const maxScroll = plannerContainer.scrollWidth - plannerContainer.clientWidth;
+          if (plannerContainer.scrollLeft < maxScroll) {
+            plannerContainer.scrollBy({ left: scrollSpeed, behavior: 'auto' });
+          }
+        }
+      });
+    }
+  }
+
+  async function handleDragEnd(event) {
     const { active, over } = event;
     setActiveDragItem(null);
+    
+    // Clear any pending scroll animation
+    if (scrollAnimationRef.current) {
+      cancelAnimationFrame(scrollAnimationRef.current);
+      scrollAnimationRef.current = null;
+    }
+    
     console.log(`[App.jsx] handleDragEnd - Active ID: ${active.id}, Over ID: ${over ? over.id : 'null'}`);
     if (!over) { console.log("[App.jsx] Drag ended outside a droppable."); return; }
 
@@ -188,7 +475,34 @@ function App() {
       if (activeOriginalColumnId === 'master' && overColumnId === 'master') {
         if (activeId !== overId || (over.data.current?.type === 'column' && overId === 'master')) {
           console.log(`[App.jsx] Dispatching MOVE_PROJECT: activeId=${activeId}, overId=${overId}`);
-          dispatch({ type: 'MOVE_PROJECT', payload: { activeId, overId } });
+          try {
+            // Update UI immediately for responsiveness
+            dispatch({ type: 'MOVE_PROJECT', payload: { activeId, overId } });
+            
+            // Persist the new order to the database
+            const updatedProjectDefinitions = [...state.projectDefinitions];
+            const oldIndex = updatedProjectDefinitions.findIndex(p => p.id === activeId);
+            let newIndex = updatedProjectDefinitions.findIndex(p => p.id === overId);
+            
+            if (oldIndex !== -1) {
+              if (activeId === overId) newIndex = oldIndex; 
+              else if (overId === 'master' || newIndex === -1) { 
+                newIndex = updatedProjectDefinitions.length; 
+              }
+              
+              // Calculate new project order
+              const reorderedProjects = [...updatedProjectDefinitions];
+              const [movedProject] = reorderedProjects.splice(oldIndex, 1);
+              reorderedProjects.splice(newIndex, 0, movedProject);
+              const projectIds = reorderedProjects.map(p => p.id);
+              
+              // Persist to database
+              await dataService.reorderProjects(projectIds);
+            }
+          } catch (error) {
+            console.error('Failed to move project:', error);
+            setError(error.message);
+          }
         } else {
           console.log("[App.jsx] MOVE_PROJECT skipped (dropped on self or no change).");
         }
@@ -202,10 +516,33 @@ function App() {
           return;
       }
       console.log(`[App.jsx] Dispatching MOVE_TASK: activeId=${activeId}, overId=${overId}, activeContainer=${activeOriginalColumnId}, overContainer=${overColumnId}, taskProjectId=${task.projectId}`);
-      dispatch({
-        type: 'MOVE_TASK',
-        payload: { activeId, overId, activeContainer: activeOriginalColumnId, overContainer: overColumnId, taskProjectId: task.projectId },
-      });
+      try {
+        // Prepare move data with proper ordering information
+        const moveData = {
+          container: overColumnId,
+          projectId: task.projectId
+        };
+        
+        // Copy the EXACT logic from localStorage version
+        if (overId !== overColumnId && over.data.current?.type === 'task') {
+          // Find the exact position of the target task
+          const targetTasks = state.tasks[overColumnId] || [];
+          const targetIndex = targetTasks.findIndex(item => item.id === overId);
+          if (targetIndex !== -1) {
+            moveData.orderIndex = targetIndex;
+          }
+        }
+        
+        // Handle task move with API
+        await dataService.moveTask(activeId, moveData);
+        dispatch({
+          type: 'MOVE_TASK',
+          payload: { activeId, overId, activeContainer: activeOriginalColumnId, overContainer: overColumnId, taskProjectId: task.projectId },
+        });
+      } catch (error) {
+        console.error('Failed to move task:', error);
+        setError(error.message);
+      }
     }
   }
   
@@ -224,14 +561,35 @@ function App() {
     { label: 'Delete Project', handler: handleOpenDeleteProjectModal, icon: <TrashIcon size={14} />, className: 'delete-btn delete-project-btn' },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner"></div>
+        <p>Connecting to database...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="app-error">
+        <h2>Connection Error</h2>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()}>Retry</button>
+      </div>
+    );
+  }
+
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
       <div className="app">
         <AppHeader
           onOpenAddProjectModal={handleOpenAddProjectModal}
           onOpenAddTaskModal={() => handleOpenAddTaskModal()}
           onShowCompletedTasks={() => setShowCompletedTasks(true)}
           onShowRecycleBin={() => setShowRecycleBin(true)}
+          onExportData={handleExportData}
+          onScanGoogleDrive={handleScanGoogleDrive}
           recycleBinCount={state.deletedTasks?.length || 0}
         />
         <div className="planner-container">
@@ -274,6 +632,7 @@ function App() {
         {projectToDelete && <ConfirmDeleteProjectModal project={projectToDelete} hasOutstandingTasks={hasOutstandingTasksForDelete} onConfirmDeleteEmpty={confirmDeleteEmptyProject} onCancel={handleCloseDeleteProjectModal} />}
         {showCompletedTasks && <CompletedTasksModal completedTasks={state.completedTasks || []} projectDefinitions={state.projectDefinitions || []} onMarkIncomplete={handleMarkIncompleteAction} onClose={() => setShowCompletedTasks(false)} />}
         {showRecycleBin && <RecycleBinModal deletedTasks={state.deletedTasks || []} onRestore={handleRestoreTaskAction} onPermanentDelete={handlePermanentDeleteTaskAction} onClose={() => setShowRecycleBin(false)} />}
+        {showGoogleDriveExportModal && <GoogleDriveExportModal onExport={handleGoogleDriveExport} onCancel={() => setShowGoogleDriveExportModal(false)} />}
       </div>
     </DndContext>
   );

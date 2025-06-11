@@ -1,6 +1,6 @@
 # YABLU-MC - Weekly Task Planner
 
-YABLU-MC (Yablu Mission Control) is a responsive weekly task planner application built with React and Vite. It allows users to organize their tasks into projects and schedule them across the days of the week, providing a clear overview of upcoming work.
+YABLU-MC (Yablu Mission Control) is a responsive weekly task planner application built with React and PostgreSQL. It allows users to organize their tasks into projects and schedule them across the days of the week, providing a clear overview of upcoming work with real-time synchronization across all devices.
 
 ## ✨ Key Features
 
@@ -11,18 +11,20 @@ YABLU-MC (Yablu Mission Control) is a responsive weekly task planner application
 * **Modal Dialogs**: Intuitive modals for adding/editing projects and tasks, confirming deletions, and viewing special lists.
 * **Recycle Bin**: Deleted tasks are moved to a recycle bin, allowing for restoration or permanent deletion. Tasks are automatically removed from the bin after 30 days.
 * **Completed Tasks List**: A dedicated view to see all completed tasks, along with statistics on completion rates (total, last 24 hours, this week).
-* **Persistent Storage**: Project definitions, tasks, deleted tasks, and completed tasks are saved to the browser's local storage, so your data persists across sessions.
+* **PostgreSQL Database**: All data is stored in PostgreSQL for reliable persistence and real-time synchronization across all devices on your network.
 * **Responsive Design**: The layout adapts to different screen sizes, ensuring usability on desktop and mobile devices.
 * **Customizable Project Colors**: Choose from a palette of 11 distinct colors for your projects.
 
 ## 🛠️ Tech Stack
 
 * **Frontend**: React (using Hooks and functional components)
+* **Backend**: Node.js with Express
+* **Database**: PostgreSQL
 * **Build Tool**: Vite
-* **State Management**: `useReducer` for core application data.
-* **Styling**: Custom CSS with CSS variables for theming.
+* **State Management**: `useReducer` for core application data
+* **Styling**: Custom CSS with CSS variables for theming
 * **Icons**: Lucide React
-* **Data Storage**: Browser Local Storage
+* **API**: RESTful API with CRUD operations
 
 ## 📂 Project Structure
 
@@ -31,10 +33,16 @@ The project is organized as follows:
 
 yablu-mc/
 ├── public/                 # Static assets
+├── server/                 # Backend API server
+│   ├── database/           # Database schema and connection
+│   ├── routes/             # API route handlers
+│   ├── scripts/            # Database migration scripts
+│   └── index.js            # Server entry point
 ├── src/
 │   ├── components/         # React components (Modals, Columns, Cards, etc.)
 │   ├── reducers/           # Reducer logic for state management (appReducer.js)
-│   ├── utils/              # Utility functions (constants.js, helpers.js, storage.js)
+│   ├── services/           # API service layer (dataService.js, api.js)
+│   ├── utils/              # Utility functions (constants.js, helpers.js)
 │   ├── App.css             # Main application styles
 │   ├── App.jsx             # Main application component
 │   ├── index.css           # Global styles
@@ -43,6 +51,7 @@ yablu-mc/
 ├── index.html              # Main HTML file
 ├── package.json            # Project dependencies and scripts
 ├── vite.config.js          # Vite configuration
+├── DATABASE_SETUP.md       # Database setup instructions
 └── README.md               # This file
 
 
@@ -54,6 +63,8 @@ To get a local copy up and running, follow these simple steps.
 
 * Node.js (v18.x or later recommended)
 * npm (comes with Node.js)
+* PostgreSQL (v12 or later)
+* Network access to your server (for multi-device sync)
 
 ### Installation & Running
 
@@ -63,33 +74,48 @@ To get a local copy up and running, follow these simple steps.
     cd yablu-mc
     ```
 
-2.  **Install NPM packages:**
+2.  **Install dependencies:**
     ```bash
     npm install
+    npm run setup:server
     ```
 
-3.  **Run the development server:**
+3.  **Set up PostgreSQL:**
+    See `DATABASE_SETUP.md` for detailed database setup instructions.
+
+4.  **Configure environment:**
     ```bash
+    cp .env.example .env
+    cp server/.env.example server/.env
+    # Edit server/.env with your DATABASE_URL
+    ```
+
+5.  **Run database migration:**
+    ```bash
+    npm run migrate
+    ```
+
+6.  **Start the application:**
+    ```bash
+    # Terminal 1: Start API server
+    npm run dev:server
+    
+    # Terminal 2: Start frontend
     npm run dev
     ```
-    This will start the Vite development server, typically at `http://localhost:5173`.
+    Frontend: `http://your-server-ip:5173`
+    API: `http://your-server-ip:3001`
 
-4.  **Build for production:**
+7.  **Build for production:**
     ```bash
     npm run build
-    ```
-    This will create a `dist` folder with the optimized production build.
-
-5.  **Preview production build locally:**
-    ```bash
-    npm run preview
     ```
 
 ## ⚙️ How It Works
 
-* **Data Initialization**: On first load, if no data is found in local storage, the application initializes with a set of default projects and tasks defined in `src/utils/constants.js`. Otherwise, it loads the saved state.
+* **Data Initialization**: On first load, the application connects to PostgreSQL and loads all data from the database. If no data exists, it starts with an empty state.
 * **State Management**: The core application state (projects, tasks, deleted/completed items) is managed by `appReducer.js`. Actions are dispatched from components to update the state.
-* **Data Persistence**: Any changes to projects or tasks trigger an update to local storage, ensuring data is saved.
+* **Data Persistence**: All changes are immediately saved to PostgreSQL via REST API calls, ensuring real-time synchronization across devices.
 * **Master Task List**: The "Master Tasks" column serves as a backlog or an area for tasks not yet assigned to a specific day. Projects are also listed here to allow for project-level actions.
 * **Daily Columns**: Tasks can be (conceptually, as drag-and-drop is not implemented in this version) moved or assigned to specific days of the week.
 * **Task Lifecycle**:

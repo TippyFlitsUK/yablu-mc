@@ -94,3 +94,6 @@ lib-cov
 .env.test.local
 .env.production.local
 
+# Google credentials
+server/google-credentials.json
+
