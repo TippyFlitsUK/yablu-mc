@@ -70,7 +70,6 @@ class GoogleDriveService {
       });
       
       const sharedDriveIds = (drivesResponse.data.drives || []).map(drive => drive.id);
-      console.log('Scanning only these shared drives:', sharedDriveIds);
       
       if (sharedDriveIds.length === 0) {
         console.log('No shared drives found');
@@ -103,51 +102,58 @@ class GoogleDriveService {
       const sharedDriveFiles = [];
       const filesToTraverse = [];
       
-      // First pass: use driveId to quickly identify shared drive files
+      // All files need full path traversal to get complete hierarchy
       for (const file of files) {
-        if (file.driveId && sharedDrives[file.driveId]) {
-          // File is directly in a shared drive
-          file.sharedDriveName = sharedDrives[file.driveId];
-          file.fullPath = [sharedDrives[file.driveId]];
-          file.pathString = sharedDrives[file.driveId];
-          sharedDriveFiles.push(file);
-        } else if (file.parents && file.parents.length > 0) {
-          // Need to traverse up to check if it belongs to a shared drive
+        if (file.parents && file.parents.length > 0) {
+          // All files with parents need path traversal
           filesToTraverse.push(file);
+        } else if (file.driveId && sharedDrives[file.driveId]) {
+          // Files directly in shared drive root (no parents)
+          file.sharedDriveName = sharedDrives[file.driveId];
+          file.fullPath = [sharedDrives[file.driveId], file.name];
+          file.pathString = file.fullPath.join(' > ');
+          sharedDriveFiles.push(file);
         }
       }
       
       // Second pass: only traverse files that don't have driveId set
       if (filesToTraverse.length > 0) {
-        // Batch fetch parent information to reduce API calls
-        const parentIds = [...new Set(filesToTraverse.map(f => f.parents[0]))];
+        // Batch fetch ALL folder hierarchy in one API call  
+        
+        // Get ALL folders from shared drives to build complete hierarchy
+        const allFoldersResponse = await this.drive.files.list({
+          q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+          fields: 'files(id,name,parents,driveId)',
+          pageSize: 1000,
+          includeItemsFromAllDrives: true,
+          supportsAllDrives: true
+        });
+        
+        // Build complete folder hierarchy cache
         const parentInfoCache = {};
         
-        // Fetch parent information in batches
-        for (const parentId of parentIds) {
-          if (sharedDrives[parentId]) {
-            parentInfoCache[parentId] = { 
-              name: sharedDrives[parentId], 
-              isSharedDriveRoot: true 
-            };
-          } else {
-            try {
-              const parentInfo = await this.drive.files.get({
-                fileId: parentId,
-                fields: 'name,parents',
-                supportsAllDrives: true
-              });
-              parentInfoCache[parentId] = parentInfo.data;
-            } catch (error) {
-              parentInfoCache[parentId] = null;
-            }
-          }
-        }
+        // Add shared drives to cache
+        Object.keys(sharedDrives).forEach(driveId => {
+          parentInfoCache[driveId] = { 
+            name: sharedDrives[driveId], 
+            isSharedDriveRoot: true 
+          };
+        });
+        
+        // Add all folders to cache
+        (allFoldersResponse.data.files || []).forEach(folder => {
+          parentInfoCache[folder.id] = {
+            name: folder.name,
+            parents: folder.parents,
+            driveId: folder.driveId
+          };
+        });
+        
         
         // Now traverse with cached parent info
         for (const file of filesToTraverse) {
           let currentParentId = file.parents[0];
-          let maxDepth = 5; // Reduced depth for performance
+          let maxDepth = 10; // Increased depth for complete paths
           const pathElements = [];
           let belongsToSharedDrive = false;
           
@@ -167,20 +173,6 @@ class GoogleDriveService {
             
             if (parentInfo.parents && parentInfo.parents.length > 0) {
               currentParentId = parentInfo.parents[0];
-              // Cache miss - need to fetch this parent too
-              if (!parentInfoCache[currentParentId]) {
-                try {
-                  const newParentInfo = await this.drive.files.get({
-                    fileId: currentParentId,
-                    fields: 'name,parents',
-                    supportsAllDrives: true
-                  });
-                  parentInfoCache[currentParentId] = newParentInfo.data;
-                } catch (error) {
-                  parentInfoCache[currentParentId] = null;
-                  break;
-                }
-              }
             } else {
               break; // Reached root without finding shared drive
             }
@@ -190,6 +182,7 @@ class GoogleDriveService {
           
           // ONLY include files that belong to shared drives
           if (belongsToSharedDrive) {
+            pathElements.push(file.name); // Add the file name to the end
             file.fullPath = pathElements;
             file.pathString = pathElements.join(' > ');
             sharedDriveFiles.push(file);

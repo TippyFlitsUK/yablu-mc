@@ -97,3 +97,6 @@ lib-cov
 # Google credentials
 server/google-credentials.json
 
+# Database setup with sensitive info
+DATABASE_SETUP.md
+

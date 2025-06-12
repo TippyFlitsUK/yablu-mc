@@ -51,6 +51,11 @@ class GoogleDriveService {
 
   async exportForClaude(lookbackHours = 36) {
     try {
+      // Ensure service is initialized before export
+      if (!(await this.ensureInitialized())) {
+        throw new Error('Google Drive service not initialized');
+      }
+
       // Create a temporary link to trigger download
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const downloadUrl = `${API_BASE_URL}/gdrive/export/download?lookbackHours=${lookbackHours}`;

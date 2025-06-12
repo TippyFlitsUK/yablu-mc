@@ -66,19 +66,39 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { title, notes, projectId } = req.body;
     
+    console.log('Task update request:', { id, title, notes, projectId });
+    
+    // Validate required fields
+    if (!title || title.trim() === '') {
+      console.error('Task update failed: Missing or empty title');
+      return res.status(400).json({ error: 'Title is required' });
+    }
+    
+    if (!projectId) {
+      console.error('Task update failed: Missing projectId');
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+    
     const result = await pool.query(
       'UPDATE tasks SET title = $1, notes = $2, project_id = $3 WHERE id = $4 RETURNING *',
-      [title, notes, projectId, id]
+      [title, notes || '', projectId, id]
     );
     
     if (result.rows.length === 0) {
+      console.error('Task update failed: Task not found with id:', id);
       return res.status(404).json({ error: 'Task not found' });
     }
     
+    console.log('Task updated successfully:', result.rows[0]);
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating task:', error);
-    res.status(500).json({ error: 'Failed to update task' });
+    console.error('Error updating task:', {
+      error: error.message,
+      stack: error.stack,
+      params: req.params,
+      body: req.body
+    });
+    res.status(500).json({ error: 'Failed to update task', details: error.message });
   }
 });
 

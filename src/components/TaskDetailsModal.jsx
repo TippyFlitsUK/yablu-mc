@@ -69,8 +69,8 @@ function TaskDetailsModal({ task, projectDefinitions, onSave, onCancel }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content task-details-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content task-details-modal">
         <div className="modal-header">
           <h2>Task Details</h2>
           <button className="modal-close" onClick={onCancel}><X size={18} /></button>
